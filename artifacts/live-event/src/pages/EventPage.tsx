@@ -34,6 +34,7 @@ export function EventPage({ eventId }: EventPageProps) {
   const [, navigate] = useLocation();
   const [liveAttendees, setLiveAttendees] = useState<LiveAttendee[]>([]);
   const [showQr, setShowQr] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -53,6 +54,7 @@ export function EventPage({ eventId }: EventPageProps) {
         case "room-state": {
           const attendees = (msg.attendees as LiveAttendee[]) ?? [];
           setLiveAttendees(attendees);
+          if (typeof msg.qaOpen === "boolean") setQaOpen(msg.qaOpen);
           break;
         }
         case "attendee-joined": {
@@ -158,6 +160,16 @@ export function EventPage({ eventId }: EventPageProps) {
   const handleSelectSpeaker = (attendeeId: number) => {
     send({ type: "select-speaker", attendeeId });
     toast.success("Speaker selected");
+  };
+
+  const handleQaToggle = () => {
+    if (qaOpen) {
+      send({ type: "close-qa" });
+      setQaOpen(false);
+    } else {
+      send({ type: "open-qa" });
+      setQaOpen(true);
+    }
   };
 
   const raisedHands = liveAttendees.filter((a) => a.raisedHand);
@@ -293,40 +305,50 @@ export function EventPage({ eventId }: EventPageProps) {
             )}
           </div>
 
-          {raisedHands.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2">
                 <Hand className="w-4 h-4 text-yellow-500" />
-                Hand Raise Queue
-                <span className="ml-auto text-xs bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded-full">
-                  {raisedHands.length} waiting
-                </span>
+                Q&amp;A Session
               </h2>
+              <button
+                onClick={handleQaToggle}
+                className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                  qaOpen
+                    ? "bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 border border-yellow-500/30"
+                    : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+                }`}
+              >
+                {qaOpen ? "Close Q&A" : "Open Q&A"}
+              </button>
+            </div>
+            {qaOpen && raisedHands.length > 0 && (
               <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium">Hand Raise Queue — {raisedHands.length} waiting</p>
                 {raisedHands.map((a, idx) => (
-                  <div
-                    key={a.attendeeId}
-                    className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3"
-                  >
+                  <div key={a.attendeeId} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center">
-                        {idx + 1}
-                      </span>
-                      <span className="text-sm font-medium">
-                        {a.attendeeName ?? `Attendee #${a.attendeeId}`}
-                      </span>
+                      <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center">{idx + 1}</span>
+                      <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.attendeeId}`}</span>
                     </div>
                     <button
                       onClick={() => handleSelectSpeaker(a.attendeeId)}
-                      className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                      className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
                     >
-                      Select
+                      Give mic
                     </button>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+            {qaOpen && raisedHands.length === 0 && (
+              <p className="text-sm text-muted-foreground">Q&amp;A is open — attendees can raise their hand.</p>
+            )}
+            {!qaOpen && (
+              <p className="text-sm text-muted-foreground">Open Q&amp;A to allow attendees to raise their hand and ask questions.</p>
+            )}
+          </div>
+
         </div>
 
         <div className="space-y-6">

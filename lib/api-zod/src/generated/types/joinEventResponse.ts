@@ -11,4 +11,6 @@ import type { Event } from "./event";
 export interface JoinEventResponse {
   attendee: Attendee;
   event: Event;
+  /** Opaque token used to authenticate subsequent attendee requests. */
+  sessionToken: string;
 }

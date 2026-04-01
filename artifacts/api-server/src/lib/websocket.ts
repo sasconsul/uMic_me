@@ -23,6 +23,8 @@ interface Room {
   hostUserId: string;
   hostWs?: WebSocket;
   clients: Map<WebSocket, RoomClient>;
+  /** Whether the host has opened Q&A — attendees can only raise hands when true */
+  qaOpen: boolean;
 }
 
 const rooms = new Map<number, Room>();
@@ -141,7 +143,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: sessionUserId, clients: new Map() };
+            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== sessionUserId) {
             // Another verified host already owns this room
@@ -157,7 +159,7 @@ export function setupWebSocketServer(server: Server) {
           currentRole = "host";
           currentRoom.hostWs = ws;
           currentRoom.clients.set(ws, { ws, role: "host", hostUserId: sessionUserId });
-          ws.send(JSON.stringify({ type: "room-state", attendees: getAttendeeList(currentRoom) }));
+          ws.send(JSON.stringify({ type: "room-state", attendees: getAttendeeList(currentRoom), qaOpen: currentRoom.qaOpen }));
           break;
         }
 
@@ -185,7 +187,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map() };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false };
             rooms.set(eventId, room);
           }
 
@@ -193,6 +195,7 @@ export function setupWebSocketServer(server: Server) {
           currentRole = "attendee";
           currentAttendeeId = attendeeId;
           currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, attendeeName: attendee.displayName });
+          ws.send(JSON.stringify({ type: "qa-state", qaOpen: currentRoom.qaOpen }));
           sendToHost(currentRoom, { type: "attendee-joined", attendeeId, attendeeName: attendee.displayName });
           break;
         }
@@ -200,10 +203,28 @@ export function setupWebSocketServer(server: Server) {
         case "raise-hand": {
           if (!currentRoom || currentRole !== "attendee") return;
           const raised = Boolean(msg.raised);
+          if (raised && !currentRoom.qaOpen) {
+            ws.send(JSON.stringify({ type: "qa-closed" }));
+            return;
+          }
           const client = currentRoom.clients.get(ws);
           if (client) {
             sendToHost(currentRoom, { type: "hand-update", attendeeId: currentAttendeeId, attendeeName: client.attendeeName, raisedHand: raised });
           }
+          break;
+        }
+
+        case "open-qa": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          currentRoom.qaOpen = true;
+          broadcastToAttendees(currentRoom, { type: "qa-opened" });
+          break;
+        }
+
+        case "close-qa": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          currentRoom.qaOpen = false;
+          broadcastToAttendees(currentRoom, { type: "qa-closed" });
           break;
         }
 

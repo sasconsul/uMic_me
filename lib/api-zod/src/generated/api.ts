@@ -300,7 +300,11 @@ export const JoinEventResponse = zod.object({
     qrCodeToken: zod.string(),
     createdAt: zod.coerce.date(),
   }),
-  sessionToken: zod.string(),
+  sessionToken: zod
+    .string()
+    .describe(
+      "Opaque token used to authenticate subsequent attendee requests.",
+    ),
 });
 
 /**

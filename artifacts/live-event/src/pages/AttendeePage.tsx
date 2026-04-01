@@ -29,6 +29,7 @@ export function AttendeePage() {
   const [eventClosed, setEventClosed] = useState(false);
   const [streamAvailable, setStreamAvailable] = useState(false);
   const [speakerSelected, setSpeakerSelected] = useState(false);
+  const [qaOpen, setQaOpen] = useState(false);
   const [eventId, setEventId] = useState<number>(0);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -94,6 +95,19 @@ export function AttendeePage() {
   const onMessage = useCallback(
     async (msg: WsMessage) => {
       switch (msg.type) {
+        case "qa-state": {
+          const { qaOpen: isOpen } = msg as { qaOpen: boolean };
+          setQaOpen(isOpen);
+          break;
+        }
+        case "qa-opened":
+          setQaOpen(true);
+          toast.info("Q&A is now open — you can raise your hand");
+          break;
+        case "qa-closed":
+          setQaOpen(false);
+          setRaisedHand(false);
+          break;
         case "stream-available":
           setStreamAvailable(true);
           break;
@@ -160,6 +174,7 @@ export function AttendeePage() {
   }, [send]);
 
   const handleRaiseHand = async () => {
+    if (!qaOpen && !raisedHand) return;
     const newValue = !raisedHand;
     setRaisedHand(newValue);
     send({ type: "raise-hand", raised: newValue });
@@ -258,17 +273,23 @@ export function AttendeePage() {
 
         <button
           onClick={handleRaiseHand}
+          disabled={!qaOpen && !raisedHand}
           className={`w-full py-6 rounded-2xl font-bold text-xl transition-all ${
             raisedHand
               ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-95"
-              : "bg-card border-2 border-border hover:border-yellow-500/50 hover:bg-yellow-500/5"
+              : !qaOpen
+                ? "bg-muted/50 border-2 border-muted text-muted-foreground cursor-not-allowed opacity-60"
+                : "bg-card border-2 border-border hover:border-yellow-500/50 hover:bg-yellow-500/5"
           }`}
         >
           <div className="flex flex-col items-center gap-2">
-            <Hand className={`w-10 h-10 ${raisedHand ? "text-white" : "text-yellow-500"}`} />
+            <Hand className={`w-10 h-10 ${raisedHand ? "text-white" : !qaOpen ? "text-muted-foreground" : "text-yellow-500"}`} />
             <span>{raisedHand ? "Lower Hand" : "Raise Hand"}</span>
             {raisedHand && (
               <span className="text-sm font-normal opacity-80">The host has been notified</span>
+            )}
+            {!raisedHand && !qaOpen && (
+              <span className="text-sm font-normal">Q&A is not open yet</span>
             )}
           </div>
         </button>

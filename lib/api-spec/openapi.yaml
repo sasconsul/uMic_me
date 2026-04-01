@@ -807,12 +807,15 @@ components:
 
     JoinEventResponse:
       type: object
-      required: [attendee, event]
+      required: [attendee, event, sessionToken]
       properties:
         attendee:
           $ref: '#/components/schemas/Attendee'
         event:
           $ref: '#/components/schemas/Event'
+        sessionToken:
+          type: string
+          description: Opaque token used to authenticate subsequent attendee requests.
 
     UpdateAttendeeBody:
       type: object
