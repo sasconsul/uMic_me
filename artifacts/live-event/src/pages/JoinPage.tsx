@@ -13,11 +13,21 @@ export function JoinPage() {
 
   const joinEvent = useJoinEvent({
     mutation: {
-      onSuccess: (data) => {
+      onSuccess: (rawData) => {
+        const data = rawData as unknown as {
+          attendee: { id: number; displayName: string | null };
+          event: { id: number };
+          sessionToken: string;
+        };
         const { attendee, event } = data;
+        const sessionToken = data.sessionToken ?? "";
         sessionStorage.setItem(
           `event-join-${attendee.id}`,
-          JSON.stringify({ eventId: event.id, displayName: attendee.displayName }),
+          JSON.stringify({
+            eventId: event.id,
+            displayName: attendee.displayName,
+            sessionToken,
+          }),
         );
         navigate(`/attend/${token}/${attendee.id}`);
       },

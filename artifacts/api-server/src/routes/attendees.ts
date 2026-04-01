@@ -1,9 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventsTable, attendeesTable } from "@workspace/db";
-import { eq, count } from "drizzle-orm";
+import { eq, count, and } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { JoinEventParams, JoinEventBody, UpdateAttendeeParams, UpdateAttendeeBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+function generateSessionToken(): string {
+  return randomBytes(32).toString("hex");
+}
 
 router.post("/join/:token", async (req: Request, res: Response) => {
   const params = JoinEventParams.safeParse({ token: req.params.token });
@@ -29,15 +34,17 @@ router.post("/join/:token", async (req: Request, res: Response) => {
     .from(attendeesTable)
     .where(eq(attendeesTable.eventId, event.id));
   const nextAssignedId = Number(countRow?.count ?? 0) + 1;
+  const sessionToken = generateSessionToken();
   const [attendee] = await db
     .insert(attendeesTable)
     .values({
       eventId: event.id,
       displayName: parsed.data.displayName ?? null,
       assignedId: nextAssignedId,
+      sessionToken,
     })
     .returning();
-  res.json({ attendee, event });
+  res.json({ attendee, event, sessionToken });
 });
 
 router.patch("/attendees/:attendeeId", async (req: Request, res: Response) => {
@@ -46,6 +53,16 @@ router.patch("/attendees/:attendeeId", async (req: Request, res: Response) => {
     res.status(400).json({ error: "Invalid attendee id" });
     return;
   }
+
+  const authHeader = req.headers["x-attendee-token"] as string | undefined;
+  const cookieToken = (req.cookies?.["attendee_token"] as string | undefined);
+  const providedToken = authHeader ?? cookieToken;
+
+  if (!providedToken) {
+    res.status(401).json({ error: "Missing attendee token" });
+    return;
+  }
+
   const parsed = UpdateAttendeeBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -54,9 +71,9 @@ router.patch("/attendees/:attendeeId", async (req: Request, res: Response) => {
   const [existing] = await db
     .select()
     .from(attendeesTable)
-    .where(eq(attendeesTable.id, params.data.attendeeId));
+    .where(and(eq(attendeesTable.id, params.data.attendeeId), eq(attendeesTable.sessionToken, providedToken)));
   if (!existing) {
-    res.status(404).json({ error: "Attendee not found" });
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
   const updateData: Partial<typeof attendeesTable.$inferInsert> = {};

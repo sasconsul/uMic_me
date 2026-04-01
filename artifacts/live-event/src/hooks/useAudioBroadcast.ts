@@ -69,7 +69,7 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       send({
-        type: "rtc-offer",
+        type: "rtc-offer-to-attendee",
         targetId: attendeeId,
         sdp: offer,
       });

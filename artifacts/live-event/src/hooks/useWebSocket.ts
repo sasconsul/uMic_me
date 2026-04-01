@@ -7,6 +7,7 @@ interface UseWebSocketOptions {
   role: "host" | "attendee";
   attendeeId?: number;
   attendeeName?: string | null;
+  attendeeToken?: string | null;
   onMessage: (msg: WsMessage) => void;
 }
 
@@ -15,6 +16,7 @@ export function useWebSocket({
   role,
   attendeeId,
   attendeeName,
+  attendeeToken,
   onMessage,
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -23,6 +25,8 @@ export function useWebSocket({
   onMessageRef.current = onMessage;
 
   useEffect(() => {
+    if (!eventId) return;
+
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${proto}//${location.host}/ws`;
     const ws = new WebSocket(wsUrl);
@@ -34,14 +38,14 @@ export function useWebSocket({
         ws.send(JSON.stringify({ type: "join-host", eventId }));
       } else {
         ws.send(
-          JSON.stringify({ type: "join-attendee", eventId, attendeeId, attendeeName }),
+          JSON.stringify({ type: "join-attendee", eventId, attendeeId, attendeeName, attendeeToken }),
         );
       }
     };
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data) as WsMessage;
+        const msg = JSON.parse(event.data as string) as WsMessage;
         onMessageRef.current(msg);
       } catch {
         // noop
@@ -55,7 +59,7 @@ export function useWebSocket({
     return () => {
       ws.close();
     };
-  }, [eventId, role, attendeeId, attendeeName]);
+  }, [eventId, role, attendeeId, attendeeName, attendeeToken]);
 
   const send = useCallback((msg: WsMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

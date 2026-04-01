@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
-import { useUpdateAttendee } from "@workspace/api-client-react";
 import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { toast } from "sonner";
@@ -19,72 +18,84 @@ export function AttendeePage() {
   const [speakerSelected, setSpeakerSelected] = useState(false);
   const [eventId, setEventId] = useState<number>(0);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
     if (stored) {
-      const data = JSON.parse(stored) as { eventId: number; displayName: string | null };
+      const data = JSON.parse(stored) as { eventId: number; displayName: string | null; sessionToken?: string };
       setEventId(data.eventId);
       setDisplayName(data.displayName);
+      setSessionToken(data.sessionToken ?? null);
     }
   }, [attendeeId]);
 
-  const updateAttendee = useUpdateAttendee({
-    mutation: {
-      onError: () => toast.error("Failed to update"),
+  const patchAttendee = useCallback(
+    async (update: { raisedHand?: boolean }) => {
+      if (!sessionToken) return;
+      await fetch(`/api/attendees/${attendeeId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-attendee-token": sessionToken,
+        },
+        body: JSON.stringify(update),
+      });
     },
-  });
-
-  const handleWsMessageRef = useCallback(
-    (handleOffer: (s: RTCSessionDescriptionInit) => Promise<void>, handleIce: (c: RTCIceCandidateInit) => Promise<void>, disconnect: () => void) =>
-      async (msg: WsMessage) => {
-        switch (msg.type) {
-          case "stream-available":
-            setStreamAvailable(true);
-            break;
-          case "stream-ended":
-            setStreamAvailable(false);
-            disconnect();
-            break;
-          case "session-ended":
-            setEventClosed(true);
-            disconnect();
-            break;
-          case "speaker-selected": {
-            const { attendeeId: selectedId } = msg as { attendeeId: number };
-            if (selectedId === attendeeId) {
-              setSpeakerSelected(true);
-              toast.success("You've been selected as the speaker!");
-              setTimeout(() => setSpeakerSelected(false), 5000);
-            }
-            break;
-          }
-          case "rtc-offer": {
-            const { sdp } = msg as { sdp: RTCSessionDescriptionInit };
-            await handleOffer(sdp);
-            break;
-          }
-          case "rtc-ice-to-attendee": {
-            const { candidate } = msg as { candidate: RTCIceCandidateInit };
-            await handleIce(candidate);
-            break;
-          }
-        }
-      },
-    [attendeeId],
+    [attendeeId, sessionToken],
   );
 
-  const [wsSend, setWsSend] = useState<((msg: WsMessage) => void) | null>(null);
+  const wsSendRef = useRef<((msg: WsMessage) => void) | null>(null);
 
   const { isReceiving, handleOffer, handleIce, disconnect } = useAudioReceive({
     eventId,
     attendeeId,
-    send: wsSend ?? (() => {}),
+    send: (msg) => wsSendRef.current?.(msg),
   });
 
+  const handleOfferRef = useRef(handleOffer);
+  const handleIceRef = useRef(handleIce);
+  const disconnectRef = useRef(disconnect);
+  handleOfferRef.current = handleOffer;
+  handleIceRef.current = handleIce;
+  disconnectRef.current = disconnect;
+
   const onMessage = useCallback(
-    handleWsMessageRef(handleOffer, handleIce, disconnect),
-    [handleWsMessageRef, handleOffer, handleIce, disconnect],
+    async (msg: WsMessage) => {
+      switch (msg.type) {
+        case "stream-available":
+          setStreamAvailable(true);
+          break;
+        case "stream-ended":
+          setStreamAvailable(false);
+          disconnectRef.current();
+          break;
+        case "session-ended":
+          setEventClosed(true);
+          disconnectRef.current();
+          break;
+        case "speaker-selected": {
+          const { attendeeId: selectedId } = msg as { attendeeId: number };
+          if (selectedId === attendeeId) {
+            setSpeakerSelected(true);
+            toast.success("You've been selected as the speaker!");
+            setTimeout(() => setSpeakerSelected(false), 5000);
+          }
+          break;
+        }
+        case "rtc-offer": {
+          const { sdp } = msg as { sdp: RTCSessionDescriptionInit };
+          await handleOfferRef.current(sdp);
+          break;
+        }
+        case "rtc-ice-candidate": {
+          const { candidate } = msg as { candidate: RTCIceCandidateInit };
+          await handleIceRef.current(candidate);
+          break;
+        }
+      }
+    },
+    [attendeeId],
   );
 
   const { send, connected } = useWebSocket({
@@ -92,18 +103,19 @@ export function AttendeePage() {
     role: "attendee",
     attendeeId,
     attendeeName: displayName,
+    attendeeToken: sessionToken,
     onMessage,
   });
 
   useEffect(() => {
-    setWsSend(() => send);
+    wsSendRef.current = send;
   }, [send]);
 
-  const handleRaiseHand = () => {
+  const handleRaiseHand = async () => {
     const newValue = !raisedHand;
     setRaisedHand(newValue);
     send({ type: "raise-hand", raised: newValue });
-    updateAttendee.mutate({ attendeeId, data: { raisedHand: newValue } });
+    await patchAttendee({ raisedHand: newValue });
   };
 
   if (eventClosed) {

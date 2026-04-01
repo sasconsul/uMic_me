@@ -7,6 +7,7 @@ export const attendeesTable = pgTable("attendees", {
   id: serial("id").primaryKey(),
   eventId: integer("event_id").notNull().references(() => eventsTable.id, { onDelete: "cascade" }),
   sessionId: varchar("session_id", { length: 128 }),
+  sessionToken: varchar("session_token", { length: 128 }),
   displayName: text("display_name"),
   assignedId: integer("assigned_id").notNull(),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),

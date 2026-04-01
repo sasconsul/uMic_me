@@ -40,7 +40,11 @@ export function HostDashboard() {
 
   const { uploadFile, isUploading } = useUpload({
     onSuccess: (res) => {
-      setLogoUrl(res.objectPath);
+      const objectPath = res.objectPath;
+      const serveUrl = objectPath.startsWith("/objects/")
+        ? `/api/storage${objectPath}`
+        : objectPath;
+      setLogoUrl(serveUrl);
       toast.success("Logo uploaded");
     },
     onError: () => toast.error("Logo upload failed"),

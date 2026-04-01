@@ -2,8 +2,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import { logger } from "./logger";
-import { getSession, getSessionId } from "./auth";
-import type { Request } from "express";
+import { getSession } from "./auth";
+import { db, eventsTable, attendeesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 
 interface RoomClient {
   ws: WebSocket;
@@ -21,13 +22,6 @@ interface Room {
 }
 
 const rooms = new Map<number, Room>();
-
-function getOrCreateRoom(eventId: number, hostUserId: string): Room {
-  if (!rooms.has(eventId)) {
-    rooms.set(eventId, { eventId, hostUserId, clients: new Map() });
-  }
-  return rooms.get(eventId)!;
-}
 
 function broadcastToRoom(room: Room, message: object, exclude?: WebSocket) {
   const data = JSON.stringify(message);
@@ -62,7 +56,7 @@ function getAttendeeList(room: Room) {
   return attendees;
 }
 
-async function getSessionUserFromCookie(req: IncomingMessage): Promise<{ id: string } | null> {
+async function getSessionUserFromReq(req: IncomingMessage): Promise<{ id: string } | null> {
   const cookieHeader = req.headers.cookie ?? "";
   const cookieMap: Record<string, string> = {};
   cookieHeader.split(";").forEach((part) => {
@@ -92,20 +86,18 @@ export function setupWebSocketServer(server: Server) {
     let currentRoom: Room | null = null;
     let currentRole: "host" | "attendee" | null = null;
     let currentAttendeeId: number | undefined;
-    let authenticated = false;
     let sessionUserId: string | null = null;
 
     try {
-      const user = await getSessionUserFromCookie(req);
+      const user = await getSessionUserFromReq(req);
       if (user) {
         sessionUserId = user.id;
-        authenticated = true;
       }
     } catch {
-      // unauthenticated — only attendee join allowed
+      // session lookup failed — only attendee join allowed
     }
 
-    ws.on("message", (raw: Buffer) => {
+    ws.on("message", async (raw: Buffer) => {
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(raw.toString()) as Record<string, unknown>;
@@ -117,17 +109,35 @@ export function setupWebSocketServer(server: Server) {
 
       switch (type) {
         case "join-host": {
-          if (!authenticated || !sessionUserId) {
+          if (!sessionUserId) {
             ws.send(JSON.stringify({ type: "error", message: "Unauthorized" }));
             return;
           }
           const eventId = Number(msg.eventId);
           if (!eventId) return;
-          currentRoom = getOrCreateRoom(eventId, sessionUserId);
-          if (currentRoom.hostUserId !== sessionUserId) {
+
+          // Verify DB ownership
+          const [event] = await db
+            .select({ id: eventsTable.id, hostUserId: eventsTable.hostUserId })
+            .from(eventsTable)
+            .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, sessionUserId)));
+
+          if (!event) {
+            ws.send(JSON.stringify({ type: "error", message: "Forbidden: not event owner" }));
+            return;
+          }
+
+          // Ensure room is scoped to this host
+          let room = rooms.get(eventId);
+          if (!room) {
+            room = { eventId, hostUserId: sessionUserId, clients: new Map() };
+            rooms.set(eventId, room);
+          } else if (room.hostUserId !== sessionUserId) {
             ws.send(JSON.stringify({ type: "error", message: "Forbidden" }));
             return;
           }
+
+          currentRoom = room;
           currentRole = "host";
           currentRoom.hostWs = ws;
           currentRoom.clients.set(ws, { ws, role: "host", hostUserId: sessionUserId });
@@ -141,21 +151,41 @@ export function setupWebSocketServer(server: Server) {
         case "join-attendee": {
           const eventId = Number(msg.eventId);
           const attendeeId = Number(msg.attendeeId);
-          const attendeeName = (msg.attendeeName as string | null) ?? null;
-          if (!eventId || !attendeeId) return;
-          let room = rooms.get(eventId);
-          if (!room) {
-            ws.send(JSON.stringify({ type: "error", message: "Event room not found" }));
+          const attendeeToken = msg.attendeeToken as string | undefined;
+
+          if (!eventId || !attendeeId || !attendeeToken) {
+            ws.send(JSON.stringify({ type: "error", message: "Missing attendee credentials" }));
             return;
           }
-          currentRoom = room;
+
+          // Verify attendee identity in DB
+          const [attendee] = await db
+            .select({ id: attendeesTable.id, eventId: attendeesTable.eventId, displayName: attendeesTable.displayName, sessionToken: attendeesTable.sessionToken })
+            .from(attendeesTable)
+            .where(and(eq(attendeesTable.id, attendeeId), eq(attendeesTable.eventId, eventId)));
+
+          if (!attendee || attendee.sessionToken !== attendeeToken) {
+            ws.send(JSON.stringify({ type: "error", message: "Invalid attendee credentials" }));
+            return;
+          }
+
+          const room = rooms.get(eventId);
+          if (!room) {
+            // Room not yet created by host — allow joining and create minimal room
+            const newRoom: Room = { eventId, hostUserId: "", clients: new Map() };
+            rooms.set(eventId, newRoom);
+            currentRoom = newRoom;
+          } else {
+            currentRoom = room;
+          }
+
           currentRole = "attendee";
           currentAttendeeId = attendeeId;
-          currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, attendeeName });
+          currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, attendeeName: attendee.displayName });
           sendToHost(currentRoom, {
             type: "attendee-joined",
             attendeeId,
-            attendeeName,
+            attendeeName: attendee.displayName,
           });
           break;
         }
@@ -176,19 +206,19 @@ export function setupWebSocketServer(server: Server) {
         }
 
         case "start-broadcast": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           broadcastToRoom(currentRoom, { type: "stream-available" }, ws);
           break;
         }
 
         case "stop-broadcast": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           broadcastToRoom(currentRoom, { type: "stream-ended" }, ws);
           break;
         }
 
         case "select-speaker": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           const speakerId = Number(msg.attendeeId);
           broadcastToRoom(currentRoom, {
             type: "speaker-selected",
@@ -198,7 +228,7 @@ export function setupWebSocketServer(server: Server) {
         }
 
         case "close-event": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           broadcastToRoom(currentRoom, { type: "session-ended" }, ws);
           rooms.delete(currentRoom.eventId);
           currentRoom = null;
@@ -206,7 +236,7 @@ export function setupWebSocketServer(server: Server) {
         }
 
         case "rtc-offer-to-attendee": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           const targetId = Number(msg.targetId);
           currentRoom.clients.forEach((client, clientWs) => {
             if (client.role === "attendee" && client.attendeeId === targetId && clientWs.readyState === WebSocket.OPEN) {
@@ -217,11 +247,11 @@ export function setupWebSocketServer(server: Server) {
         }
 
         case "rtc-ice-to-attendee": {
-          if (!authenticated || !currentRoom || currentRole !== "host") return;
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           const targetId = Number(msg.targetId);
           currentRoom.clients.forEach((client, clientWs) => {
             if (client.role === "attendee" && client.attendeeId === targetId && clientWs.readyState === WebSocket.OPEN) {
-              clientWs.send(JSON.stringify({ type: "rtc-ice-to-attendee", candidate: msg.candidate }));
+              clientWs.send(JSON.stringify({ type: "rtc-ice-candidate", candidate: msg.candidate }));
             }
           });
           break;
