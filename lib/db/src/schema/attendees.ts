@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, serial, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { eventsTable } from "./events";
@@ -13,7 +13,9 @@ export const attendeesTable = pgTable("attendees", {
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   raisedHand: boolean("raised_hand").notNull().default(false),
   raisedHandAt: timestamp("raised_hand_at", { withTimezone: true }),
-});
+}, (table) => [
+  unique("attendees_event_assigned_id_unique").on(table.eventId, table.assignedId),
+]);
 
 export const insertAttendeeSchema = createInsertSchema(attendeesTable).omit({
   id: true,
