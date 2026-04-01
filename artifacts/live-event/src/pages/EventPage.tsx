@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
   useGetEvent,
@@ -25,6 +25,7 @@ interface LiveAttendee {
   attendeeName: string | null;
   raisedHand: boolean;
   raisedHandAt?: string | null;
+  assignedId?: number;
 }
 
 interface EventPageProps {
@@ -49,6 +50,15 @@ export function EventPage({ eventId }: EventPageProps) {
     },
   });
 
+  // Refs for mutable values used inside stable WS message callback to avoid stale closures
+  const isBroadcastingRef = useRef(false);
+  const createPeerForAttendeeRef = useRef<(id: number) => Promise<void>>(async () => {});
+  const handleRtcAnswerRef = useRef<(fromId: number, sdp: RTCSessionDescriptionInit) => Promise<void>>(async () => {});
+  const handleRtcIceRef = useRef<(fromId: number, candidate: RTCIceCandidateInit) => Promise<void>>(async () => {});
+  const removePeerRef = useRef<(id: number) => void>(() => {});
+  const handleSpeakerOfferRef = useRef<(fromId: number, sdp: RTCSessionDescriptionInit) => Promise<void>>(async () => {});
+  const handleSpeakerIceRef = useRef<(fromId: number, candidate: RTCIceCandidateInit) => Promise<void>>(async () => {});
+
   const handleWsMessage = useCallback(
     async (msg: WsMessage) => {
       switch (msg.type) {
@@ -59,23 +69,24 @@ export function EventPage({ eventId }: EventPageProps) {
           break;
         }
         case "attendee-joined": {
-          const { attendeeId, attendeeName } = msg as {
+          const { attendeeId, attendeeName, assignedId } = msg as {
             attendeeId: number;
             attendeeName: string | null;
+            assignedId?: number;
           };
           setLiveAttendees((prev) => {
             if (prev.find((a) => a.attendeeId === attendeeId)) return prev;
-            return [...prev, { attendeeId, attendeeName, raisedHand: false }];
+            return [...prev, { attendeeId, attendeeName, raisedHand: false, assignedId }];
           });
-          if (isBroadcasting) {
-            await createPeerForAttendee(attendeeId);
+          if (isBroadcastingRef.current) {
+            await createPeerForAttendeeRef.current(attendeeId);
           }
           break;
         }
         case "attendee-left": {
           const { attendeeId } = msg as { attendeeId: number };
           setLiveAttendees((prev) => prev.filter((a) => a.attendeeId !== attendeeId));
-          removePeer(attendeeId);
+          removePeerRef.current(attendeeId);
           break;
         }
         case "hand-update": {
@@ -95,7 +106,7 @@ export function EventPage({ eventId }: EventPageProps) {
             fromId: number;
             sdp: RTCSessionDescriptionInit;
           };
-          await handleRtcAnswer(fromId, sdp);
+          await handleRtcAnswerRef.current(fromId, sdp);
           break;
         }
         case "rtc-ice-from-attendee": {
@@ -103,22 +114,21 @@ export function EventPage({ eventId }: EventPageProps) {
             fromId: number;
             candidate: RTCIceCandidateInit;
           };
-          await handleRtcIce(fromId, candidate);
+          await handleRtcIceRef.current(fromId, candidate);
           break;
         }
         case "speaker-offer": {
           const { fromId, sdp } = msg as { fromId: number; sdp: RTCSessionDescriptionInit };
-          await handleSpeakerOffer(fromId, sdp);
+          await handleSpeakerOfferRef.current(fromId, sdp);
           break;
         }
         case "speaker-ice-from-attendee": {
           const { fromId, candidate } = msg as { fromId: number; candidate: RTCIceCandidateInit };
-          await handleSpeakerIce(fromId, candidate);
+          await handleSpeakerIceRef.current(fromId, candidate);
           break;
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -139,6 +149,15 @@ export function EventPage({ eventId }: EventPageProps) {
     handleSpeakerOffer,
     handleSpeakerIce,
   } = useAudioBroadcast({ send });
+
+  // Keep refs in sync with latest function instances
+  isBroadcastingRef.current = isBroadcasting;
+  createPeerForAttendeeRef.current = createPeerForAttendee;
+  handleRtcAnswerRef.current = handleRtcAnswer;
+  handleRtcIceRef.current = handleRtcIce;
+  removePeerRef.current = removePeer;
+  handleSpeakerOfferRef.current = handleSpeakerOffer;
+  handleSpeakerIceRef.current = handleSpeakerIce;
 
   const handleBroadcastToggle = async () => {
     if (isBroadcasting) {

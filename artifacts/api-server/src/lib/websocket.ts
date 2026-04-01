@@ -10,6 +10,7 @@ interface RoomClient {
   ws: WebSocket;
   role: "host" | "attendee";
   attendeeId?: number;
+  assignedId?: number;
   attendeeName?: string | null;
   hostUserId?: string;
   raisedHand?: boolean;
@@ -64,11 +65,12 @@ function sendToAttendee(room: Room, attendeeId: number, message: object) {
 }
 
 function getAttendeeList(room: Room) {
-  const attendees: Array<{ attendeeId: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null }> = [];
+  const attendees: Array<{ attendeeId: number; assignedId?: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null }> = [];
   room.clients.forEach((client) => {
     if (client.role === "attendee" && client.attendeeId !== undefined) {
       attendees.push({
         attendeeId: client.attendeeId,
+        assignedId: client.assignedId,
         attendeeName: client.attendeeName ?? null,
         raisedHand: client.raisedHand ?? false,
         raisedHandAt: client.raisedHandAt ? client.raisedHandAt.toISOString() : null,
@@ -190,7 +192,7 @@ export function setupWebSocketServer(server: Server) {
 
           // Verify attendee identity in DB
           const [attendee] = await db
-            .select({ id: attendeesTable.id, eventId: attendeesTable.eventId, displayName: attendeesTable.displayName, sessionToken: attendeesTable.sessionToken })
+            .select({ id: attendeesTable.id, eventId: attendeesTable.eventId, displayName: attendeesTable.displayName, sessionToken: attendeesTable.sessionToken, assignedId: attendeesTable.assignedId })
             .from(attendeesTable)
             .where(and(eq(attendeesTable.id, attendeeId), eq(attendeesTable.eventId, eventId)));
 
@@ -220,9 +222,9 @@ export function setupWebSocketServer(server: Server) {
           currentRoom = room;
           currentRole = "attendee";
           currentAttendeeId = attendeeId;
-          currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, attendeeName: attendee.displayName });
+          currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           ws.send(JSON.stringify({ type: "qa-state", qaOpen: currentRoom.qaOpen }));
-          sendToHost(currentRoom, { type: "attendee-joined", attendeeId, attendeeName: attendee.displayName });
+          sendToHost(currentRoom, { type: "attendee-joined", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           break;
         }
 
