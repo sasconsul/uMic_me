@@ -76,6 +76,15 @@ router.patch("/attendees/:attendeeId", async (req: Request, res: Response) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  // Reject if event is closed
+  const [relatedEvent] = await db
+    .select({ status: eventsTable.status })
+    .from(eventsTable)
+    .where(eq(eventsTable.id, existing.eventId));
+  if (!relatedEvent || relatedEvent.status === "closed") {
+    res.status(409).json({ error: "Event is closed" });
+    return;
+  }
   const updateData: Partial<typeof attendeesTable.$inferInsert> = {};
   if (parsed.data.raisedHand !== undefined) {
     updateData.raisedHand = parsed.data.raisedHand;

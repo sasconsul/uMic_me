@@ -12,6 +12,8 @@ interface RoomClient {
   attendeeId?: number;
   attendeeName?: string | null;
   hostUserId?: string;
+  raisedHand?: boolean;
+  raisedHandAt?: Date | null;
 }
 
 interface Room {
@@ -62,11 +64,24 @@ function sendToAttendee(room: Room, attendeeId: number, message: object) {
 }
 
 function getAttendeeList(room: Room) {
-  const attendees: Array<{ attendeeId: number; attendeeName: string | null; raisedHand: boolean }> = [];
+  const attendees: Array<{ attendeeId: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null }> = [];
   room.clients.forEach((client) => {
     if (client.role === "attendee" && client.attendeeId !== undefined) {
-      attendees.push({ attendeeId: client.attendeeId, attendeeName: client.attendeeName ?? null, raisedHand: false });
+      attendees.push({
+        attendeeId: client.attendeeId,
+        attendeeName: client.attendeeName ?? null,
+        raisedHand: client.raisedHand ?? false,
+        raisedHandAt: client.raisedHandAt ? client.raisedHandAt.toISOString() : null,
+      });
     }
+  });
+  attendees.sort((a, b) => {
+    if (a.raisedHand && b.raisedHand && a.raisedHandAt && b.raisedHandAt) {
+      return new Date(a.raisedHandAt).getTime() - new Date(b.raisedHandAt).getTime();
+    }
+    if (a.raisedHand && !b.raisedHand) return -1;
+    if (!a.raisedHand && b.raisedHand) return 1;
+    return 0;
   });
   return attendees;
 }
@@ -184,6 +199,17 @@ export function setupWebSocketServer(server: Server) {
             return;
           }
 
+          // Reject if event is closed
+          const [event] = await db
+            .select({ status: eventsTable.status })
+            .from(eventsTable)
+            .where(eq(eventsTable.id, eventId));
+          if (!event || event.status === "closed") {
+            ws.send(JSON.stringify({ type: "session-ended" }));
+            ws.close();
+            return;
+          }
+
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
@@ -209,7 +235,15 @@ export function setupWebSocketServer(server: Server) {
           }
           const client = currentRoom.clients.get(ws);
           if (client) {
-            sendToHost(currentRoom, { type: "hand-update", attendeeId: currentAttendeeId, attendeeName: client.attendeeName, raisedHand: raised });
+            client.raisedHand = raised;
+            client.raisedHandAt = raised ? new Date() : null;
+            sendToHost(currentRoom, {
+              type: "hand-update",
+              attendeeId: currentAttendeeId,
+              attendeeName: client.attendeeName,
+              raisedHand: raised,
+              raisedHandAt: client.raisedHandAt ? client.raisedHandAt.toISOString() : null,
+            });
           }
           break;
         }
@@ -252,8 +286,19 @@ export function setupWebSocketServer(server: Server) {
 
         case "close-event": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
-          broadcastToRoom(currentRoom, { type: "session-ended" }, ws);
-          rooms.delete(currentRoom.eventId);
+          const closingRoom = currentRoom;
+          // Persist closure in DB so reconnecting attendees are rejected
+          await db.update(eventsTable).set({ status: "closed" }).where(eq(eventsTable.id, closingRoom.eventId));
+          // Notify all clients then forcibly close attendee connections
+          closingRoom.clients.forEach((client, clientWs) => {
+            if (clientWs.readyState === WebSocket.OPEN) {
+              clientWs.send(JSON.stringify({ type: "session-ended" }));
+            }
+            if (client.role === "attendee") {
+              clientWs.close();
+            }
+          });
+          rooms.delete(closingRoom.eventId);
           currentRoom = null;
           break;
         }

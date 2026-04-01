@@ -24,6 +24,7 @@ interface LiveAttendee {
   attendeeId: number;
   attendeeName: string | null;
   raisedHand: boolean;
+  raisedHandAt?: string | null;
 }
 
 interface EventPageProps {
@@ -78,12 +79,13 @@ export function EventPage({ eventId }: EventPageProps) {
           break;
         }
         case "hand-update": {
-          const { attendeeId, raisedHand } = msg as {
+          const { attendeeId, raisedHand, raisedHandAt } = msg as {
             attendeeId: number;
             raisedHand: boolean;
+            raisedHandAt?: string | null;
           };
           setLiveAttendees((prev) =>
-            prev.map((a) => (a.attendeeId === attendeeId ? { ...a, raisedHand } : a)),
+            prev.map((a) => (a.attendeeId === attendeeId ? { ...a, raisedHand, raisedHandAt: raisedHandAt ?? null } : a)),
           );
           if (raisedHand) toast.info("✋ Attendee raised hand");
           break;
@@ -172,7 +174,16 @@ export function EventPage({ eventId }: EventPageProps) {
     }
   };
 
-  const raisedHands = liveAttendees.filter((a) => a.raisedHand);
+  const raisedHands = liveAttendees
+    .filter((a) => a.raisedHand)
+    .sort((a, b) => {
+      if (a.raisedHandAt && b.raisedHandAt) {
+        return new Date(a.raisedHandAt).getTime() - new Date(b.raisedHandAt).getTime();
+      }
+      if (a.raisedHandAt && !b.raisedHandAt) return -1;
+      if (!a.raisedHandAt && b.raisedHandAt) return 1;
+      return 0;
+    });
 
   if (!event) {
     return (
