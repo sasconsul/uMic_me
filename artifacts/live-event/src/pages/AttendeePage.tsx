@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "wouter";
 import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
+import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic } from "lucide-react";
 
 export function AttendeePage() {
   const { token, attendeeId: attendeeIdStr } = useParams<{
@@ -35,10 +36,7 @@ export function AttendeePage() {
       if (!sessionToken) return;
       await fetch(`/api/attendees/${attendeeId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "x-attendee-token": sessionToken,
-        },
+        headers: { "Content-Type": "application/json", "x-attendee-token": sessionToken },
         body: JSON.stringify(update),
       });
     },
@@ -53,12 +51,23 @@ export function AttendeePage() {
     send: (msg) => wsSendRef.current?.(msg),
   });
 
+  const { isSpeaking, startSpeaking, stopSpeaking, handleSpeakerAnswer, handleSpeakerIce } = useSpeakerUplink({
+    attendeeId,
+    send: (msg) => wsSendRef.current?.(msg),
+  });
+
   const handleOfferRef = useRef(handleOffer);
   const handleIceRef = useRef(handleIce);
   const disconnectRef = useRef(disconnect);
+  const startSpeakingRef = useRef(startSpeaking);
+  const handleSpeakerAnswerRef = useRef(handleSpeakerAnswer);
+  const handleSpeakerIceRef = useRef(handleSpeakerIce);
   handleOfferRef.current = handleOffer;
   handleIceRef.current = handleIce;
   disconnectRef.current = disconnect;
+  startSpeakingRef.current = startSpeaking;
+  handleSpeakerAnswerRef.current = handleSpeakerAnswer;
+  handleSpeakerIceRef.current = handleSpeakerIce;
 
   const onMessage = useCallback(
     async (msg: WsMessage) => {
@@ -79,8 +88,25 @@ export function AttendeePage() {
           if (selectedId === attendeeId) {
             setSpeakerSelected(true);
             toast.success("You've been selected as the speaker!");
-            setTimeout(() => setSpeakerSelected(false), 5000);
+          } else {
+            setSpeakerSelected(false);
           }
+          break;
+        }
+        case "speaker-mic-request": {
+          setSpeakerSelected(true);
+          toast.success("You've been selected to speak — mic activating...");
+          await startSpeakingRef.current();
+          break;
+        }
+        case "speaker-answer": {
+          const { sdp } = msg as { sdp: RTCSessionDescriptionInit };
+          await handleSpeakerAnswerRef.current(sdp);
+          break;
+        }
+        case "speaker-ice-candidate": {
+          const { candidate } = msg as { candidate: RTCIceCandidateInit };
+          await handleSpeakerIceRef.current(candidate);
           break;
         }
         case "rtc-offer": {
@@ -144,9 +170,7 @@ export function AttendeePage() {
             <p className="text-sm text-muted-foreground">Welcome, {displayName}!</p>
           )}
           <div className="flex items-center justify-center gap-2">
-            <span
-              className={`flex items-center gap-1.5 text-sm ${connected ? "text-green-500" : "text-muted-foreground"}`}
-            >
+            <span className={`flex items-center gap-1.5 text-sm ${connected ? "text-green-500" : "text-muted-foreground"}`}>
               <span className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
               {connected ? "Connected" : "Connecting..."}
             </span>
@@ -154,10 +178,21 @@ export function AttendeePage() {
         </div>
 
         {speakerSelected && (
-          <div className="bg-green-500/10 border border-green-500/30 text-green-600 rounded-xl px-4 py-3 flex items-center gap-2 justify-center">
-            <CheckCircle className="w-5 h-5" />
-            <span className="font-medium text-sm">You've been selected as speaker!</span>
+          <div className={`border rounded-xl px-4 py-3 flex items-center gap-2 justify-center ${isSpeaking ? "bg-red-500/10 border-red-500/30 text-red-600" : "bg-green-500/10 border-green-500/30 text-green-600"}`}>
+            {isSpeaking ? <Mic className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+            <span className="font-medium text-sm">
+              {isSpeaking ? "Mic active — you are speaking live" : "Selected as speaker — mic activating..."}
+            </span>
           </div>
+        )}
+
+        {isSpeaking && (
+          <button
+            onClick={stopSpeaking}
+            className="w-full py-3 rounded-xl font-semibold text-sm bg-red-600 text-white hover:bg-red-700 transition-colors"
+          >
+            Stop Speaking
+          </button>
         )}
 
         <div className="bg-card border border-border rounded-xl p-6 space-y-3">
@@ -176,9 +211,7 @@ export function AttendeePage() {
             </span>
           </div>
           {!isReceiving && streamAvailable && (
-            <p className="text-xs text-muted-foreground">
-              Make sure your device volume is turned up.
-            </p>
+            <p className="text-xs text-muted-foreground">Make sure your device volume is turned up.</p>
           )}
         </div>
 
@@ -194,9 +227,7 @@ export function AttendeePage() {
             <Hand className={`w-10 h-10 ${raisedHand ? "text-white" : "text-yellow-500"}`} />
             <span>{raisedHand ? "Lower Hand" : "Raise Hand"}</span>
             {raisedHand && (
-              <span className="text-sm font-normal opacity-80">
-                The host has been notified
-              </span>
+              <span className="text-sm font-normal opacity-80">The host has been notified</span>
             )}
           </div>
         </button>

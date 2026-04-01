@@ -161,6 +161,7 @@ export interface JoinEventBody {
 export interface JoinEventResponse {
   attendee: Attendee;
   event: Event;
+  sessionToken: string;
 }
 
 export interface UpdateAttendeeBody {

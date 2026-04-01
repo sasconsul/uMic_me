@@ -102,6 +102,16 @@ export function EventPage({ eventId }: EventPageProps) {
           await handleRtcIce(fromId, candidate);
           break;
         }
+        case "speaker-offer": {
+          const { fromId, sdp } = msg as { fromId: number; sdp: RTCSessionDescriptionInit };
+          await handleSpeakerOffer(fromId, sdp);
+          break;
+        }
+        case "speaker-ice-from-attendee": {
+          const { fromId, candidate } = msg as { fromId: number; candidate: RTCIceCandidateInit };
+          await handleSpeakerIce(fromId, candidate);
+          break;
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,6 +132,8 @@ export function EventPage({ eventId }: EventPageProps) {
     handleRtcAnswer,
     handleRtcIce,
     removePeer,
+    handleSpeakerOffer,
+    handleSpeakerIce,
   } = useAudioBroadcast({ send });
 
   const handleBroadcastToggle = async () => {

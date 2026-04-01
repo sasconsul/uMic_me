@@ -9,6 +9,7 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const peerConns = useRef<Map<number, RTCPeerConnection>>(new Map());
+  const speakerPcs = useRef<Map<number, RTCPeerConnection>>(new Map());
   const paAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const startBroadcast = useCallback(async () => {
@@ -58,21 +59,13 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
 
       pc.onicecandidate = (e) => {
         if (e.candidate) {
-          send({
-            type: "rtc-ice-to-attendee",
-            targetId: attendeeId,
-            candidate: e.candidate.toJSON(),
-          });
+          send({ type: "rtc-ice-to-attendee", targetId: attendeeId, candidate: e.candidate.toJSON() });
         }
       };
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      send({
-        type: "rtc-offer-to-attendee",
-        targetId: attendeeId,
-        sdp: offer,
-      });
+      send({ type: "rtc-offer-to-attendee", targetId: attendeeId, sdp: offer });
     },
     [send],
   );
@@ -105,6 +98,54 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     }
   }, []);
 
+  /**
+   * Handle speaker uplink: the selected attendee sent us their mic offer.
+   * We create a receiver PC, answer the offer, then relay audio to all other attendees.
+   */
+  const handleSpeakerOffer = useCallback(
+    async (speakerId: number, sdp: RTCSessionDescriptionInit) => {
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+      speakerPcs.current.set(speakerId, pc);
+
+      pc.ontrack = (event) => {
+        const [speakerStream] = event.streams;
+        if (!speakerStream) return;
+        // Relay to all attendee downlink peers by replacing tracks
+        peerConns.current.forEach((downPc) => {
+          const senders = downPc.getSenders();
+          speakerStream.getTracks().forEach((track) => {
+            const sender = senders.find((s) => s.track?.kind === track.kind);
+            if (sender) {
+              sender.replaceTrack(track).catch(() => {});
+            }
+          });
+        });
+      };
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          send({ type: "speaker-ice-to-attendee", targetId: speakerId, candidate: e.candidate.toJSON() });
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      send({ type: "speaker-answer-to-attendee", targetId: speakerId, sdp: answer });
+    },
+    [send],
+  );
+
+  const handleSpeakerIce = useCallback(
+    async (speakerId: number, candidate: RTCIceCandidateInit) => {
+      const pc = speakerPcs.current.get(speakerId);
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    },
+    [],
+  );
+
   return {
     isBroadcasting,
     startBroadcast,
@@ -113,5 +154,7 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     handleRtcAnswer,
     handleRtcIce,
     removePeer,
+    handleSpeakerOffer,
+    handleSpeakerIce,
   };
 }
