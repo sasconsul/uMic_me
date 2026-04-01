@@ -1,1 +1,1 @@
-This is the repo for You Mike Me built by Replit so that they may be able to enter the contest. 
+This is the repo for You Mike Me (uMic.me) built rebuilt with Replit so to enter the Buildathon contest. 
