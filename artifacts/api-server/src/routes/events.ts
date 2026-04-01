@@ -59,6 +59,10 @@ router.post("/events", async (req: Request, res: Response) => {
 });
 
 router.get("/events/:id", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   const params = GetEventParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -72,7 +76,7 @@ router.get("/events/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  if (req.isAuthenticated() && event.hostUserId !== req.user.id) {
+  if (event.hostUserId !== req.user.id) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }

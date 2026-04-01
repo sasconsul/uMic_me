@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useListEvents, useCreateEvent, useDeleteEvent } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { toast } from "sonner";
 import {
   Plus,
@@ -11,6 +12,8 @@ import {
   Trash2,
   ChevronRight,
   LogOut,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,6 +34,17 @@ export function HostDashboard() {
   const [title, setTitle] = useState("");
   const [promoText, setPromoText] = useState("");
   const [startTime, setStartTime] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: (res) => {
+      setLogoUrl(res.objectPath);
+      toast.success("Logo uploaded");
+    },
+    onError: () => toast.error("Logo upload failed"),
+  });
 
   const { data, refetch, isLoading } = useListEvents();
   const createEvent = useCreateEvent({
@@ -39,9 +53,7 @@ export function HostDashboard() {
         toast.success("Event created!");
         refetch();
         setCreateOpen(false);
-        setTitle("");
-        setPromoText("");
-        setStartTime("");
+        resetForm();
       },
       onError: () => toast.error("Failed to create event"),
     },
@@ -56,11 +68,32 @@ export function HostDashboard() {
     },
   });
 
+  function resetForm() {
+    setTitle("");
+    setPromoText("");
+    setStartTime("");
+    setLogoUrl(null);
+    setLogoPreview(null);
+  }
+
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setLogoPreview(preview);
+    await uploadFile(file);
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     createEvent.mutate({
-      data: { title, promoText: promoText || undefined, startTime: startTime || undefined },
+      data: {
+        title,
+        promoText: promoText || undefined,
+        startTime: startTime || undefined,
+        logoUrl: logoUrl ?? undefined,
+      },
     });
   };
 
@@ -113,7 +146,7 @@ export function HostDashboard() {
               Manage your live events and broadcasts
             </p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors text-sm">
                 <Plus className="w-4 h-4" />
@@ -135,6 +168,44 @@ export function HostDashboard() {
                     required
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Logo</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoSelect}
+                  />
+                  {logoPreview ? (
+                    <div className="relative inline-block">
+                      <img
+                        src={logoPreview}
+                        alt="Logo preview"
+                        className="h-20 w-20 object-cover rounded-lg border border-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setLogoUrl(null); setLogoPreview(null); }}
+                        className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-2 border border-dashed border-border rounded-lg px-4 py-3 text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-50"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      {isUploading ? "Uploading..." : "Upload logo"}
+                    </button>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="promo">Description</Label>
                   <Textarea
@@ -157,14 +228,14 @@ export function HostDashboard() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setCreateOpen(false)}
+                    onClick={() => { setCreateOpen(false); resetForm(); }}
                     className="flex-1 border border-border rounded-lg py-2 text-sm hover:bg-muted transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={createEvent.isPending || !title.trim()}
+                    disabled={createEvent.isPending || !title.trim() || isUploading}
                     className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >
                     {createEvent.isPending ? "Creating..." : "Create Event"}
@@ -197,16 +268,25 @@ export function HostDashboard() {
                 className="bg-card border border-border rounded-xl p-5 hover:border-primary/50 transition-colors group"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{event.title}</h3>
-                    {event.startTime && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {event.logoUrl && (
+                      <img
+                        src={event.logoUrl}
+                        alt="Logo"
+                        className="w-10 h-10 rounded-lg object-cover border border-border shrink-0"
+                      />
                     )}
+                    <div className="min-w-0">
+                      <h3 className="font-semibold truncate">{event.title}</h3>
+                      {event.startTime && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ml-2 ${statusBadge(event.status)}`}
+                    className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ml-2 shrink-0 ${statusBadge(event.status)}`}
                   >
                     {event.status}
                   </span>

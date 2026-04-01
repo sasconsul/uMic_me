@@ -94,7 +94,7 @@ export function EventPage({ eventId }: EventPageProps) {
           await handleRtcAnswer(fromId, sdp);
           break;
         }
-        case "rtc-ice-to-host": {
+        case "rtc-ice-from-attendee": {
           const { fromId, candidate } = msg as {
             fromId: number;
             candidate: RTCIceCandidateInit;

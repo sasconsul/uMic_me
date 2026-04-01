@@ -11,6 +11,17 @@ interface AuthState {
   logout: () => void;
 }
 
+function getBaseUrl(): string {
+  try {
+    if (typeof import.meta !== "undefined" && (import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL) {
+      return ((import.meta as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? "/").replace(/\/+$/, "") || "/";
+    }
+  } catch {
+    // no-op
+  }
+  return "/";
+}
+
 export function useAuth(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +53,7 @@ export function useAuth(): AuthState {
   }, []);
 
   const login = useCallback(() => {
-    const base = import.meta.env.BASE_URL.replace(/\/+$/, "") || "/";
+    const base = getBaseUrl();
     window.location.href = `/api/login?returnTo=${encodeURIComponent(base)}`;
   }, []);
 
