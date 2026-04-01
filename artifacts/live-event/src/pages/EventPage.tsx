@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   QrCode,
   ExternalLink,
+  Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -255,6 +256,15 @@ export function EventPage({ eventId }: EventPageProps) {
             <QrCode className="w-4 h-4" />
             QR Code
           </button>
+          <a
+            href={`/events/${eventId}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Print Flyer
+          </a>
           {event.status === "pending" && (
             <button
               onClick={() => handleStatusChange("live")}

@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { LandingPage } from "@/pages/LandingPage";
 import { HostDashboard } from "@/pages/HostDashboard";
 import { EventPage } from "@/pages/EventPage";
+import { PrintFlyerPage } from "@/pages/PrintFlyerPage";
 import { JoinPage } from "@/pages/JoinPage";
 import { AttendeePage } from "@/pages/AttendeePage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -31,6 +32,13 @@ function AppRouter() {
         {(params) => (
           <ProtectedRoute>
             <EventPage eventId={Number(params.id)} />
+          </ProtectedRoute>
+        )}
+      </Route>
+      <Route path="/events/:id/print">
+        {(params) => (
+          <ProtectedRoute>
+            <PrintFlyerPage eventId={Number(params.id)} />
           </ProtectedRoute>
         )}
       </Route>
