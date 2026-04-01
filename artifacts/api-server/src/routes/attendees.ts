@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, eventsTable, attendeesTable } from "@workspace/db";
-import { eq, count, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { JoinEventParams, JoinEventBody, UpdateAttendeeParams, UpdateAttendeeBody } from "@workspace/api-zod";
 
@@ -29,18 +29,15 @@ router.post("/join/:token", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Event not found or closed" });
     return;
   }
-  const [countRow] = await db
-    .select({ count: count() })
-    .from(attendeesTable)
-    .where(eq(attendeesTable.eventId, event.id));
-  const nextAssignedId = Number(countRow?.count ?? 0) + 1;
   const sessionToken = generateSessionToken();
+  // Use a single INSERT...SELECT to atomically compute the next assignedId per event,
+  // preventing duplicate IDs from concurrent joins.
   const [attendee] = await db
     .insert(attendeesTable)
     .values({
       eventId: event.id,
       displayName: parsed.data.displayName ?? null,
-      assignedId: nextAssignedId,
+      assignedId: sql`(SELECT COALESCE(MAX(${attendeesTable.assignedId}), 0) + 1 FROM ${attendeesTable} WHERE ${attendeesTable.eventId} = ${event.id})`,
       sessionToken,
     })
     .returning();

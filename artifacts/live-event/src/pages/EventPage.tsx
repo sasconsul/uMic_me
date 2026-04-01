@@ -359,7 +359,7 @@ export function EventPage({ eventId }: EventPageProps) {
                   <div key={a.attendeeId} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center">{idx + 1}</span>
-                      <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.attendeeId}`}</span>
+                      <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}</span>
                     </div>
                     <button
                       onClick={() => handleSelectSpeaker(a.attendeeId)}
@@ -402,10 +402,10 @@ export function EventPage({ eventId }: EventPageProps) {
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors"
                   >
                     <div className="w-7 h-7 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center shrink-0">
-                      {a.attendeeId}
+                      {a.assignedId ?? a.attendeeId}
                     </div>
                     <span className="text-sm flex-1 truncate">
-                      {a.attendeeName ?? `Attendee #${a.attendeeId}`}
+                      {a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}
                     </span>
                     {a.raisedHand && (
                       <Hand className="w-4 h-4 text-yellow-500 shrink-0" />
