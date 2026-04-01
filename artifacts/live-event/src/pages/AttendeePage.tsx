@@ -6,6 +6,18 @@ import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
 import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic } from "lucide-react";
 
+interface StoredJoinData {
+  eventId: number;
+  displayName: string | null;
+  sessionToken?: string;
+  eventTitle?: string;
+  eventLogoUrl?: string | null;
+  eventPromoText?: string | null;
+  eventStartTime?: string | null;
+  eventStatus?: string;
+  assignedId?: number;
+}
+
 export function AttendeePage() {
   const { token, attendeeId: attendeeIdStr } = useParams<{
     token: string;
@@ -20,14 +32,24 @@ export function AttendeePage() {
   const [eventId, setEventId] = useState<number>(0);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [eventTitle, setEventTitle] = useState<string>("Live Event");
+  const [eventLogoUrl, setEventLogoUrl] = useState<string | null>(null);
+  const [eventPromoText, setEventPromoText] = useState<string | null>(null);
+  const [eventStartTime, setEventStartTime] = useState<string | null>(null);
+  const [assignedId, setAssignedId] = useState<number | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
     if (stored) {
-      const data = JSON.parse(stored) as { eventId: number; displayName: string | null; sessionToken?: string };
+      const data = JSON.parse(stored) as StoredJoinData;
       setEventId(data.eventId);
       setDisplayName(data.displayName);
       setSessionToken(data.sessionToken ?? null);
+      if (data.eventTitle) setEventTitle(data.eventTitle);
+      if (data.eventLogoUrl !== undefined) setEventLogoUrl(data.eventLogoUrl ?? null);
+      if (data.eventPromoText !== undefined) setEventPromoText(data.eventPromoText ?? null);
+      if (data.eventStartTime !== undefined) setEventStartTime(data.eventStartTime ?? null);
+      if (data.assignedId !== undefined) setAssignedId(data.assignedId);
     }
   }, [attendeeId]);
 
@@ -152,22 +174,41 @@ export function AttendeePage() {
             <Radio className="w-8 h-8 text-muted-foreground" />
           </div>
           <h2 className="text-xl font-bold">Event has ended</h2>
-          <p className="text-muted-foreground text-sm">Thank you for attending!</p>
+          <p className="text-muted-foreground text-sm">Thank you for attending {eventTitle}!</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8 text-center">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
+      <div className="w-full max-w-sm space-y-6 text-center">
         <div className="space-y-3">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
-            <Radio className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Live Event</h1>
+          {eventLogoUrl ? (
+            <img
+              src={eventLogoUrl}
+              alt={`${eventTitle} logo`}
+              className="w-16 h-16 rounded-2xl object-cover mx-auto"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+              <Radio className="w-8 h-8 text-primary" />
+            </div>
+          )}
+          <h1 className="text-2xl font-bold">{eventTitle}</h1>
+          {eventPromoText && (
+            <p className="text-sm text-muted-foreground">{eventPromoText}</p>
+          )}
+          {eventStartTime && (
+            <p className="text-xs text-muted-foreground">
+              {new Date(eventStartTime).toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          )}
           {displayName && (
-            <p className="text-sm text-muted-foreground">Welcome, {displayName}!</p>
+            <p className="text-sm font-medium">Welcome, {displayName}!</p>
           )}
           <div className="flex items-center justify-center gap-2">
             <span className={`flex items-center gap-1.5 text-sm ${connected ? "text-green-500" : "text-muted-foreground"}`}>
@@ -232,7 +273,9 @@ export function AttendeePage() {
           </div>
         </button>
 
-        <p className="text-xs text-muted-foreground">Attendee #{attendeeId}</p>
+        <p className="text-xs text-muted-foreground">
+          Attendee #{assignedId ?? attendeeId}
+        </p>
       </div>
     </div>
   );

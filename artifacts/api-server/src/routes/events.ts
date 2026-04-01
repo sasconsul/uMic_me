@@ -12,8 +12,21 @@ import {
   GetEventQrParams,
   GetEventStatsParams,
 } from "@workspace/api-zod";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorageService = new ObjectStorageService();
+
+async function trySetLogoAcl(logoUrl: string | null | undefined, userId: string): Promise<void> {
+  if (!logoUrl) return;
+  try {
+    await objectStorageService.trySetObjectEntityAclPolicy(logoUrl, {
+      owner: userId,
+      visibility: "public",
+    });
+  } catch {
+  }
+}
 
 function generateToken(): string {
   return randomBytes(24).toString("hex");
@@ -44,6 +57,7 @@ router.post("/events", async (req: Request, res: Response) => {
   }
   const { title, logoUrl, promoText, startTime } = parsed.data;
   const qrCodeToken = generateToken();
+  await trySetLogoAcl(logoUrl, req.user.id);
   const [event] = await db
     .insert(eventsTable)
     .values({
@@ -107,6 +121,7 @@ router.patch("/events/:id", async (req: Request, res: Response) => {
     return;
   }
   const { title, logoUrl, promoText, startTime, status } = parsed.data;
+  if (logoUrl !== undefined) await trySetLogoAcl(logoUrl, req.user.id);
   const updateData: Partial<typeof eventsTable.$inferInsert> = {};
   if (title !== undefined) updateData.title = title;
   if (logoUrl !== undefined) updateData.logoUrl = logoUrl;

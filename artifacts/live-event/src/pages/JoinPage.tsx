@@ -21,6 +21,12 @@ export function JoinPage() {
             eventId: event.id,
             displayName: attendee.displayName ?? null,
             sessionToken,
+            eventTitle: event.title,
+            eventLogoUrl: event.logoUrl ?? null,
+            eventPromoText: event.promoText ?? null,
+            eventStartTime: event.startTime ? new Date(event.startTime).toISOString() : null,
+            eventStatus: event.status,
+            assignedId: attendee.assignedId,
           }),
         );
         navigate(`/attend/${token}/${attendee.id}`);
