@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Live Event Platform"
+version = "1.0.0"
+id = "artifacts/live-event"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18558
+
+[services.development]
+run = "pnpm --filter @workspace/live-event run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/live-event", "run", "build" ]
+publicDir = "artifacts/live-event/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18558"
+BASE_PATH = "/"

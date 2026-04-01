@@ -1,15 +1,22 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Live Event Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+  - name: Events
+    description: Event management for hosts.
+  - name: Attendees
+    description: Attendee join and management.
 paths:
   /healthz:
     get:
@@ -24,7 +31,553 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the returnTo path on success (defaults to `/`) or `/api/login` on failure.
+
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve a private object entity
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events:
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: List events for the authenticated host
+      responses:
+        '200':
+          description: List of events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: Create a new event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventBody'
+      responses:
+        '201':
+          description: Event created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}:
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: Get a single event by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    patch:
+      tags: [Events]
+      operationId: updateEvent
+      summary: Update an event (status, title, etc.)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEventBody'
+      responses:
+        '200':
+          description: Updated event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [Events]
+      operationId: deleteEvent
+      summary: Delete an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSuccess'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/attendees:
+    get:
+      tags: [Attendees]
+      operationId: listAttendees
+      summary: List attendees for an event (host only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of attendees.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendeeListResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/qr:
+    get:
+      tags: [Events]
+      operationId: getEventQr
+      summary: Get QR code image for an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: QR code PNG image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /events/{id}/stats:
+    get:
+      tags: [Events]
+      operationId: getEventStats
+      summary: Get live stats for an event (attendee count, hand-raise count, status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventStatsResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /join/{token}:
+    post:
+      tags: [Attendees]
+      operationId: joinEvent
+      summary: Join an event as an attendee (public endpoint)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinEventBody'
+      responses:
+        '200':
+          description: Joined successfully — returns attendee record and event info.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinEventResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Event not found or closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /attendees/{attendeeId}:
+    patch:
+      tags: [Attendees]
+      operationId: updateAttendee
+      summary: Update attendee (raise/lower hand)
+      parameters:
+        - name: attendeeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAttendeeBody'
+      responses:
+        '200':
+          description: Updated attendee.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendeeResponse'
+        '404':
+          description: Attendee not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /host/stats:
+    get:
+      tags: [Events]
+      operationId: getHostStats
+      summary: Get aggregate stats for the authenticated host (total events, live events, total attendees ever)
+      responses:
+        '200':
+          description: Host dashboard stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostStatsResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token — `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +587,262 @@ components:
       required:
         - status
 
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    DeleteSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
+
+    Event:
+      type: object
+      required: [id, hostUserId, title, status, qrCodeToken, createdAt]
+      properties:
+        id:
+          type: integer
+        hostUserId:
+          type: string
+        title:
+          type: string
+        logoUrl:
+          type: [string, 'null']
+        promoText:
+          type: [string, 'null']
+        startTime:
+          type: [string, 'null']
+          format: date-time
+        status:
+          type: string
+          enum: [pending, live, closed]
+        qrCodeToken:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateEventBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: [string, 'null']
+        promoText:
+          type: [string, 'null']
+        startTime:
+          type: [string, 'null']
+          format: date-time
+
+    UpdateEventBody:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: [string, 'null']
+        promoText:
+          type: [string, 'null']
+        startTime:
+          type: [string, 'null']
+          format: date-time
+        status:
+          type: string
+          enum: [pending, live, closed]
+
+    EventResponse:
+      type: object
+      required: [event]
+      properties:
+        event:
+          $ref: '#/components/schemas/Event'
+
+    EventListResponse:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+
+    Attendee:
+      type: object
+      required: [id, eventId, assignedId, joinedAt, raisedHand]
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: integer
+        displayName:
+          type: [string, 'null']
+        assignedId:
+          type: integer
+        joinedAt:
+          type: string
+          format: date-time
+        raisedHand:
+          type: boolean
+        raisedHandAt:
+          type: [string, 'null']
+          format: date-time
+
+    AttendeeResponse:
+      type: object
+      required: [attendee]
+      properties:
+        attendee:
+          $ref: '#/components/schemas/Attendee'
+
+    AttendeeListResponse:
+      type: object
+      required: [attendees]
+      properties:
+        attendees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attendee'
+
+    JoinEventBody:
+      type: object
+      properties:
+        displayName:
+          type: [string, 'null']
+
+    JoinEventResponse:
+      type: object
+      required: [attendee, event]
+      properties:
+        attendee:
+          $ref: '#/components/schemas/Attendee'
+        event:
+          $ref: '#/components/schemas/Event'
+
+    UpdateAttendeeBody:
+      type: object
+      properties:
+        raisedHand:
+          type: boolean
+        displayName:
+          type: [string, 'null']
+
+    EventStatsResponse:
+      type: object
+      required: [eventId, attendeeCount, raisedHandCount, status]
+      properties:
+        eventId:
+          type: integer
+        attendeeCount:
+          type: integer
+        raisedHandCount:
+          type: integer
+        status:
+          type: string
+          enum: [pending, live, closed]
+
+    HostStatsResponse:
+      type: object
+      required: [totalEvents, liveEvents, totalAttendees]
+      properties:
+        totalEvents:
+          type: integer
+        liveEvents:
+          type: integer
+        totalAttendees:
+          type: integer
