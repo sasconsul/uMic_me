@@ -119,7 +119,7 @@ export function HostDashboard() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Radio className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">LiveEvent</span>
+          <span className="font-bold text-lg">uMic.me</span>
         </div>
         <div className="flex items-center gap-4">
           {user?.profileImageUrl && (
