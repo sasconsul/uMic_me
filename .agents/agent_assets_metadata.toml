@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "E5nmXoPknvSHHsoJr_OiU"
+uri = "file://artifacts/umic-deck/public/hero.png"
+type = "image"
+title = "live event hero"

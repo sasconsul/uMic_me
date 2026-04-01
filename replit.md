@@ -26,7 +26,8 @@ pnpm workspace monorepo using TypeScript. This is a full-stack real-time live ev
 artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API + WebSocket server (port via $PORT, paths: /api /ws)
-│   └── live-event/         # React + Vite frontend (port 18558, path: /)
+│   ├── live-event/         # React + Vite frontend (port 18558, path: /)
+│   └── umic-deck/          # Slides presentation artifact (path: /umic-deck/)
 ├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
