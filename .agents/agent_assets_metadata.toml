@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "E5nmXoPknvSHHsoJr_OiU"
 uri = "file://artifacts/umic-deck/public/hero.png"
 type = "image"
 title = "live event hero"
+
+[[outputs]]
+id = "HqInL8tRngGLtr8wRukgg"
+uri = "file://artifacts/umic-deck/COMIC_SCRIPT.md"
+type = "text"
+title = "Every Seat — uMic.me Short Film Script"
