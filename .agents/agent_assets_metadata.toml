@@ -11,3 +11,21 @@ id = "HqInL8tRngGLtr8wRukgg"
 uri = "file://artifacts/umic-deck/COMIC_SCRIPT.md"
 type = "text"
 title = "Every Seat — uMic.me Short Film Script"
+
+[[outputs]]
+id = "0duC83CT9UwT3JzJWaSbh"
+uri = "file://doc/architecture.md"
+type = "text"
+title = "Architecture Drill-Down"
+
+[[outputs]]
+id = "f60BI72GMx-LoFg6Eo-TW"
+uri = "file://doc/screens.md"
+type = "text"
+title = "Screen Inventory"
+
+[[outputs]]
+id = "wNju2pY_WHHkHMUhdHRwT"
+uri = "file://doc/flows.md"
+type = "text"
+title = "Screen Flows & WebSocket Reference"
