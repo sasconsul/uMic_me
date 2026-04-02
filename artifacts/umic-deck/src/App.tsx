@@ -25,7 +25,10 @@ function SlideEditor() {
   useEffect(() => {
     const position = slides[currentIndex]?.position;
     if (position !== undefined && window.parent !== window) {
-      window.parent.postMessage({ type: "slideChanged", position }, "*");
+      window.parent.postMessage(
+        { type: "slideChanged", position },
+        window.location.origin
+      );
     }
   }, [currentIndex]);
 
@@ -148,6 +151,7 @@ function SlideViewer() {
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       if (event.data?.type === "slideChanged") {
         const idx = slides.findIndex((s) => s.position === event.data.position);
         if (idx !== -1 && idx !== currentIndexRef.current) {
@@ -168,7 +172,7 @@ function SlideViewer() {
     currentIndexRef.current = bounded;
     iframeRef.current?.contentWindow?.postMessage(
       { type: "navigateToSlide", position: slides[bounded].position },
-      "*"
+      window.location.origin
     );
   };
 
@@ -396,6 +400,7 @@ export default function App() {
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
       if (
         event.data?.type === "navigateToSlide" &&
         typeof event.data.position === "number" &&
