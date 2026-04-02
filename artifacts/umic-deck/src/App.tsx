@@ -125,6 +125,7 @@ function SlideViewer() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentIndexRef = useRef(0);
   const touchStartX = useRef<number | null>(null);
+  const isIframeReadyRef = useRef(false);
 
   const [viewport, setViewport] = useState({
     w: window.innerWidth,
@@ -160,6 +161,7 @@ function SlideViewer() {
   }, []);
 
   const sendNavigate = (index: number) => {
+    if (!isIframeReadyRef.current) return;
     const bounded = Math.max(0, Math.min(slides.length - 1, index));
     if (bounded === currentIndexRef.current) return;
     setCurrentIndex(bounded);
@@ -250,7 +252,10 @@ function SlideViewer() {
               ref={iframeRef}
               src={`${base}/slide${firstPosition}`}
               style={{ width: REF_W, height: REF_H, border: "none", display: "block" }}
-              onLoad={() => iframeRef.current?.focus()}
+              onLoad={() => {
+                isIframeReadyRef.current = true;
+                iframeRef.current?.focus();
+              }}
               title="Slide viewer"
             />
           </div>
