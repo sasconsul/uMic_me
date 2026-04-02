@@ -78,8 +78,8 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
 
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background" role="status" aria-label="Loading event">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
   }
@@ -87,39 +87,40 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Toolbar — hidden on print */}
-      <div className="print:hidden sticky top-0 z-10 bg-background border-b border-border flex items-center gap-4 px-6 py-3">
+      <nav className="print:hidden sticky top-0 z-10 bg-background border-b border-border flex items-center gap-4 px-6 py-3" aria-label="Flyer editor toolbar">
         <button
           onClick={() => navigate(`/events/${eventId}`)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           Back to event
         </button>
         <div className="flex-1" />
-        <span className="text-sm text-muted-foreground hidden sm:block">Customize your flyer, then print</span>
+        <span className="text-sm text-muted-foreground hidden sm:block" aria-hidden="true">Customize your flyer, then print</span>
         <button
           onClick={handlePrint}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          <Printer className="w-4 h-4" />
+          <Printer className="w-4 h-4" aria-hidden="true" />
           Print / Save PDF
         </button>
-      </div>
+      </nav>
 
       <div className="print:block flex gap-0 max-w-7xl mx-auto print:max-w-none print:mx-0">
         {/* Customization Panel — hidden on print */}
-        <aside className="print:hidden w-72 shrink-0 p-6 space-y-6 border-r border-border bg-background min-h-[calc(100vh-57px)] sticky top-[57px] overflow-y-auto">
+        <aside className="print:hidden w-72 shrink-0 p-6 space-y-6 border-r border-border bg-background min-h-[calc(100vh-57px)] sticky top-[57px] overflow-y-auto" aria-label="Flyer customization options">
           {/* Layout */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-              <Layout className="w-3.5 h-3.5" /> Layout
+              <Layout className="w-3.5 h-3.5" aria-hidden="true" /> Layout
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Page orientation">
               {(["portrait", "landscape"] as FlyerLayout[]).map((l) => (
                 <button
                   key={l}
                   onClick={() => update("layout", l)}
-                  className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors capitalize ${
+                  aria-pressed={options.layout === l}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium border transition-colors capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                     options.layout === l
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border hover:bg-muted"
@@ -134,9 +135,9 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
           {/* Color Scheme */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-              <Palette className="w-3.5 h-3.5" /> Color Scheme
+              <Palette className="w-3.5 h-3.5" aria-hidden="true" /> Color Scheme
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Color scheme">
               {(["light", "dark", "custom"] as ColorScheme[]).map((scheme) => (
                 <label
                   key={scheme}
@@ -156,6 +157,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
                   <span className="text-sm font-medium capitalize">{scheme === "custom" ? "Custom color" : scheme}</span>
                   <div
                     className="ml-auto w-5 h-5 rounded-full border border-border shrink-0"
+                    aria-hidden="true"
                     style={{
                       background: scheme === "light" ? "white" : scheme === "dark" ? "#111" : options.accentColor,
                     }}
@@ -165,12 +167,13 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
             </div>
             {options.colorScheme === "custom" && (
               <div className="flex items-center gap-3 mt-2">
-                <label className="text-sm text-muted-foreground">Background color</label>
+                <label htmlFor="accent-color" className="text-sm text-muted-foreground">Background color</label>
                 <input
+                  id="accent-color"
                   type="color"
                   value={options.accentColor}
                   onChange={(e) => update("accentColor", e.target.value)}
-                  className="w-10 h-8 rounded cursor-pointer border border-border"
+                  className="w-10 h-8 rounded cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 />
               </div>
             )}
@@ -179,7 +182,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
           {/* Content */}
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-              <Eye className="w-3.5 h-3.5" /> Content
+              <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Content
             </h3>
             <div className="space-y-2">
               {[
@@ -214,13 +217,14 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
 
           {/* Tagline */}
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tagline</h3>
+            <label htmlFor="tagline" className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tagline</label>
             <input
+              id="tagline"
               type="text"
               value={options.tagline}
               onChange={(e) => update("tagline", e.target.value)}
               placeholder="Scan to join..."
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </section>
         </aside>
@@ -300,7 +304,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
                   <div className={`${scheme.qrBg} p-4 rounded-2xl shadow-lg mb-5`}>
                     <img
                       src={`/api/events/${eventId}/qr`}
-                      alt="QR Code"
+                      alt={`QR code to join ${event.title} — scan with your phone camera`}
                       className="w-40 h-40 block"
                     />
                   </div>
@@ -362,7 +366,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
                 <div className={`${scheme.qrBg} p-5 rounded-2xl shadow-xl mb-6`}>
                   <img
                     src={`/api/events/${eventId}/qr`}
-                    alt="QR Code"
+                    alt={`QR code to join ${event.title} — scan with your phone camera`}
                     className="w-52 h-52 block"
                   />
                 </div>

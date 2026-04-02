@@ -47,9 +47,9 @@ export function JoinPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8">
+      <main id="main-content" className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto" aria-hidden="true">
             <Radio className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">Join Live Event</h1>
@@ -64,7 +64,7 @@ export function JoinPage() {
               Your Name <span className="text-muted-foreground">(optional)</span>
             </Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Input
                 id="name"
                 value={displayName}
@@ -72,18 +72,19 @@ export function JoinPage() {
                 placeholder="Jane Smith"
                 className="pl-9"
                 maxLength={60}
+                autoComplete="name"
               />
             </div>
           </div>
           <button
             type="submit"
             disabled={joinEvent.isPending}
-            className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {joinEvent.isPending ? "Joining..." : "Join Event"}
           </button>
         </form>
-      </div>
+      </main>
     </div>
   );
 }

@@ -219,8 +219,8 @@ export function EventPage({ eventId }: EventPageProps) {
 
   if (!event) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background" role="status" aria-label="Loading event">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" aria-hidden="true" />
       </div>
     );
   }
@@ -232,10 +232,11 @@ export function EventPage({ eventId }: EventPageProps) {
       <header className="border-b border-border/50 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
+            aria-label="Back to dashboard"
             onClick={() => navigate("/dashboard")}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5" aria-hidden="true" />
           </button>
           <div>
             <h1 className="font-bold text-lg leading-none">{event.title}</h1>
@@ -252,10 +253,11 @@ export function EventPage({ eventId }: EventPageProps) {
                 {event.status}
               </span>
               <span
+                aria-live="polite"
                 className={`flex items-center gap-1 text-xs ${connected ? "text-green-500" : "text-muted-foreground"}`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
-                {connected ? "WS Connected" : "Connecting..."}
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} aria-hidden="true" />
+                {connected ? "Connected" : "Connecting..."}
               </span>
             </div>
           </div>
@@ -263,24 +265,26 @@ export function EventPage({ eventId }: EventPageProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowQr(!showQr)}
-            className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors"
+            aria-expanded={showQr}
+            aria-controls="qr-panel"
+            className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <QrCode className="w-4 h-4" />
+            <QrCode className="w-4 h-4" aria-hidden="true" />
             QR Code
           </button>
           <a
             href={`/events/${eventId}/print`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors"
+            className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-4 h-4" aria-hidden="true" />
             Print Flyer
           </a>
           {event.status === "pending" && (
             <button
               onClick={() => handleStatusChange("live")}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
             >
               Go Live
             </button>
@@ -288,7 +292,7 @@ export function EventPage({ eventId }: EventPageProps) {
           {event.status === "live" && (
             <button
               onClick={() => handleStatusChange("closed")}
-              className="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-destructive/90 transition-colors"
+              className="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-destructive/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
             >
               End Event
             </button>
@@ -297,11 +301,11 @@ export function EventPage({ eventId }: EventPageProps) {
       </header>
 
       {showQr && (
-        <div className="border-b border-border/50 px-6 py-4 bg-muted/30">
+        <div id="qr-panel" className="border-b border-border/50 px-6 py-4 bg-muted/30">
           <div className="max-w-sm mx-auto space-y-3 text-center">
             <img
               src={`/api/events/${eventId}/qr`}
-              alt="QR Code"
+              alt={`QR code to join ${event.title} — scan with your phone camera`}
               className="w-48 h-48 mx-auto rounded-lg bg-white p-2"
             />
             <p className="text-sm text-muted-foreground break-all">{joinUrl}</p>
@@ -318,11 +322,11 @@ export function EventPage({ eventId }: EventPageProps) {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main id="main-content" className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
-              <Mic className="w-4 h-4 text-primary" />
+              <Mic className="w-4 h-4 text-primary" aria-hidden="true" />
               Audio Broadcast
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -331,7 +335,8 @@ export function EventPage({ eventId }: EventPageProps) {
             <button
               onClick={handleBroadcastToggle}
               disabled={event.status === "closed"}
-              className={`w-full flex items-center justify-center gap-3 py-4 rounded-xl font-semibold text-lg transition-all ${
+              aria-pressed={isBroadcasting}
+              className={`w-full flex items-center justify-center gap-3 py-4 rounded-xl font-semibold text-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                 isBroadcasting
                   ? "bg-red-600 hover:bg-red-700 text-white"
                   : "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -339,33 +344,36 @@ export function EventPage({ eventId }: EventPageProps) {
             >
               {isBroadcasting ? (
                 <>
-                  <MicOff className="w-6 h-6" />
+                  <MicOff className="w-6 h-6" aria-hidden="true" />
                   Stop Broadcast
                 </>
               ) : (
                 <>
-                  <Mic className="w-6 h-6" />
+                  <Mic className="w-6 h-6" aria-hidden="true" />
                   Start Broadcast
                 </>
               )}
             </button>
-            {isBroadcasting && (
-              <div className="flex items-center gap-2 text-sm text-green-500">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Broadcasting to {liveAttendees.length} devices
-              </div>
-            )}
+            <div aria-live="polite" aria-atomic="true">
+              {isBroadcasting && (
+                <div className="flex items-center gap-2 text-sm text-green-500">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
+                  Broadcasting to {liveAttendees.length} device{liveAttendees.length !== 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2">
-                <Hand className="w-4 h-4 text-yellow-500" />
+                <Hand className="w-4 h-4 text-yellow-500" aria-hidden="true" />
                 Q&amp;A Session
               </h2>
               <button
                 onClick={handleQaToggle}
-                className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+                aria-pressed={qaOpen}
+                className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                   qaOpen
                     ? "bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 border border-yellow-500/30"
                     : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
@@ -376,14 +384,18 @@ export function EventPage({ eventId }: EventPageProps) {
             </div>
 
             {!qaOpen && (
-              <label className="flex items-center gap-3 cursor-pointer select-none group">
+              <label className="flex items-center gap-3 cursor-pointer select-none group" htmlFor="mute-switch">
                 <div
+                  id="mute-switch"
                   role="switch"
+                  tabIndex={0}
                   aria-checked={muteUntilCalled}
+                  aria-label="Mute attendees until I manually open their mic"
                   onClick={() => setMuteUntilCalled((v) => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${muteUntilCalled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setMuteUntilCalled((v) => !v); } }}
+                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${muteUntilCalled ? "bg-primary" : "bg-muted-foreground/30"}`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${muteUntilCalled ? "translate-x-4" : "translate-x-0.5"}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${muteUntilCalled ? "translate-x-4" : "translate-x-0.5"}`} aria-hidden="true" />
                 </div>
                 <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                   Mute attendees until I manually open their mic
@@ -401,15 +413,15 @@ export function EventPage({ eventId }: EventPageProps) {
                   </span>
                   {selectedSpeaker.micOpened ? (
                     <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
-                      <Mic className="w-3.5 h-3.5" />
+                      <Mic className="w-3.5 h-3.5" aria-hidden="true" />
                       Mic open
                     </span>
                   ) : (
                     <button
                       onClick={handleOpenMic}
-                      className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                      className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2"
                     >
-                      <Mic className="w-3.5 h-3.5" />
+                      <Mic className="w-3.5 h-3.5" aria-hidden="true" />
                       Open Mic
                     </button>
                   )}
@@ -418,22 +430,25 @@ export function EventPage({ eventId }: EventPageProps) {
             )}
 
             {qaOpen && raisedHands.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-2" aria-live="polite" aria-atomic="false">
                 <p className="text-xs text-muted-foreground font-medium">Hand Raise Queue — {raisedHands.length} waiting</p>
-                {raisedHands.map((a, idx) => (
-                  <div key={a.attendeeId} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center">{idx + 1}</span>
-                      <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}</span>
-                    </div>
-                    <button
-                      onClick={() => handleSelectSpeaker(a.attendeeId)}
-                      className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      {muteUntilCalled ? "Call on" : "Give mic"}
-                    </button>
-                  </div>
-                ))}
+                <ul aria-label="Hand raise queue">
+                  {raisedHands.map((a, idx) => (
+                    <li key={a.attendeeId} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3 mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center" aria-hidden="true">{idx + 1}</span>
+                        <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}</span>
+                      </div>
+                      <button
+                        aria-label={`${muteUntilCalled ? "Call on" : "Give mic to"} ${a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}`}
+                        onClick={() => handleSelectSpeaker(a.attendeeId)}
+                        className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        {muteUntilCalled ? "Call on" : "Give mic"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
             {qaOpen && raisedHands.length === 0 && !selectedSpeaker && (
@@ -449,9 +464,9 @@ export function EventPage({ eventId }: EventPageProps) {
         <div className="space-y-6">
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
+              <Users className="w-4 h-4 text-primary" aria-hidden="true" />
               Attendees
-              <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
                 {liveAttendees.length} online
               </span>
             </h2>
@@ -460,24 +475,24 @@ export function EventPage({ eventId }: EventPageProps) {
                 Waiting for attendees to join...
               </p>
             ) : (
-              <div className="space-y-1.5 max-h-96 overflow-y-auto">
+              <ul className="space-y-1.5 max-h-96 overflow-y-auto" aria-label="Connected attendees">
                 {liveAttendees.map((a) => (
-                  <div
+                  <li
                     key={a.attendeeId}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <div className="w-7 h-7 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
                       {a.assignedId ?? a.attendeeId}
                     </div>
                     <span className="text-sm flex-1 truncate">
                       {a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}
                     </span>
                     {a.raisedHand && (
-                      <Hand className="w-4 h-4 text-yellow-500 shrink-0" />
+                      <Hand className="w-4 h-4 text-yellow-500 shrink-0" aria-label="Hand raised" />
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
@@ -488,7 +503,7 @@ export function EventPage({ eventId }: EventPageProps) {
             </div>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

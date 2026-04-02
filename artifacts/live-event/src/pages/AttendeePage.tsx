@@ -197,20 +197,20 @@ export function AttendeePage() {
   if (eventClosed) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+        <main className="text-center space-y-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto" aria-hidden="true">
             <Radio className="w-8 h-8 text-muted-foreground" />
           </div>
-          <h2 className="text-xl font-bold">Event has ended</h2>
+          <h1 className="text-xl font-bold">Event has ended</h1>
           <p className="text-muted-foreground text-sm">Thank you for attending {eventTitle}!</p>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm space-y-6 text-center">
+      <main id="main-content" className="w-full max-w-sm space-y-6 text-center">
         <div className="space-y-3">
           {eventLogoUrl ? (
             <img
@@ -219,7 +219,7 @@ export function AttendeePage() {
               className="w-16 h-16 rounded-2xl object-cover mx-auto"
             />
           ) : (
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto" aria-hidden="true">
               <Radio className="w-8 h-8 text-primary" />
             </div>
           )}
@@ -229,37 +229,44 @@ export function AttendeePage() {
           )}
           {eventStartTime && (
             <p className="text-xs text-muted-foreground">
-              {new Date(eventStartTime).toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
+              <time dateTime={eventStartTime}>
+                {new Date(eventStartTime).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </time>
             </p>
           )}
           {displayName && (
             <p className="text-sm font-medium">Welcome, {displayName}!</p>
           )}
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2" aria-live="polite" aria-atomic="true">
             <span className={`flex items-center gap-1.5 text-sm ${connected ? "text-green-500" : "text-muted-foreground"}`}>
-              <span className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
+              <span className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} aria-hidden="true" />
               {connected ? "Connected" : "Connecting..."}
             </span>
           </div>
         </div>
 
         {speakerSelected && (
-          <div className={`border rounded-xl px-4 py-3 flex items-center gap-2 justify-center ${
-            isSpeaking && !isMicMuted
-              ? "bg-red-500/10 border-red-500/30 text-red-600"
-              : isMicMuted
-                ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600"
-                : "bg-green-500/10 border-green-500/30 text-green-600"
-          }`}>
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`border rounded-xl px-4 py-3 flex items-center gap-2 justify-center ${
+              isSpeaking && !isMicMuted
+                ? "bg-red-500/10 border-red-500/30 text-red-600"
+                : isMicMuted
+                  ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600"
+                  : "bg-green-500/10 border-green-500/30 text-green-600"
+            }`}
+          >
             {isSpeaking && !isMicMuted ? (
-              <Mic className="w-5 h-5" />
+              <Mic className="w-5 h-5" aria-hidden="true" />
             ) : isMicMuted ? (
-              <MicOff className="w-5 h-5" />
+              <MicOff className="w-5 h-5" aria-hidden="true" />
             ) : (
-              <CheckCircle className="w-5 h-5" />
+              <CheckCircle className="w-5 h-5" aria-hidden="true" />
             )}
             <span className="font-medium text-sm">
               {isSpeaking && !isMicMuted
@@ -274,18 +281,18 @@ export function AttendeePage() {
         {isSpeaking && (
           <button
             onClick={stopSpeaking}
-            className="w-full py-3 rounded-xl font-semibold text-sm bg-red-600 text-white hover:bg-red-700 transition-colors"
+            className="w-full py-3 rounded-xl font-semibold text-sm bg-red-600 text-white hover:bg-red-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2"
           >
             Stop Speaking
           </button>
         )}
 
-        <div className="bg-card border border-border rounded-xl p-6 space-y-3">
+        <div className="bg-card border border-border rounded-xl p-6 space-y-3" aria-live="polite" aria-atomic="true">
           <div className="flex items-center justify-center gap-2">
             {isReceiving ? (
-              <Volume2 className="w-5 h-5 text-green-500" />
+              <Volume2 className="w-5 h-5 text-green-500" aria-hidden="true" />
             ) : (
-              <VolumeX className="w-5 h-5 text-muted-foreground" />
+              <VolumeX className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
             )}
             <span className="font-medium text-sm">
               {isReceiving
@@ -303,7 +310,9 @@ export function AttendeePage() {
         <button
           onClick={handleRaiseHand}
           disabled={!qaOpen && !raisedHand}
-          className={`w-full py-6 rounded-2xl font-bold text-xl transition-all ${
+          aria-pressed={raisedHand}
+          aria-label={raisedHand ? "Lower your hand" : qaOpen ? "Raise your hand" : "Raise hand (Q&A not open yet)"}
+          className={`w-full py-6 rounded-2xl font-bold text-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2 ${
             raisedHand
               ? "bg-yellow-500 text-white shadow-lg shadow-yellow-500/30 scale-95"
               : !qaOpen
@@ -312,7 +321,7 @@ export function AttendeePage() {
           }`}
         >
           <div className="flex flex-col items-center gap-2">
-            <Hand className={`w-10 h-10 ${raisedHand ? "text-white" : !qaOpen ? "text-muted-foreground" : "text-yellow-500"}`} />
+            <Hand className={`w-10 h-10 ${raisedHand ? "text-white" : !qaOpen ? "text-muted-foreground" : "text-yellow-500"}`} aria-hidden="true" />
             <span>{raisedHand ? "Lower Hand" : "Raise Hand"}</span>
             {raisedHand && (
               <span className="text-sm font-normal opacity-80">The host has been notified</span>
@@ -323,10 +332,10 @@ export function AttendeePage() {
           </div>
         </button>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground" aria-label={`Attendee number ${assignedId ?? attendeeId}`}>
           Attendee #{assignedId ?? attendeeId}
         </p>
-      </div>
+      </main>
     </div>
   );
 }
