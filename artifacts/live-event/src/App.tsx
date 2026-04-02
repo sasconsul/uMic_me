@@ -8,6 +8,7 @@ import { EventPage } from "@/pages/EventPage";
 import { PrintFlyerPage } from "@/pages/PrintFlyerPage";
 import { JoinPage } from "@/pages/JoinPage";
 import { AttendeePage } from "@/pages/AttendeePage";
+import { DemosPage } from "@/pages/DemosPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient({
@@ -23,6 +24,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
+      <Route path="/demos" component={DemosPage} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <HostDashboard />

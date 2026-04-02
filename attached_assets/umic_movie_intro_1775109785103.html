@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>uMic.me | Every Seat is the Front Row</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains+Mono', monospace; }
+        .cyan-glow { box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+        .bg-noise { background-image: url('https://www.transparenttextures.com/patterns/asfalt-dark.png'); }
+    </style>
+</head>
+<body class="bg-[#0A0A0A] text-white selection:bg-[#00D4FF] selection:text-black">
+
+    <header class="relative h-screen flex items-center justify-center overflow-hidden bg-noise border-b border-white/10">
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-[#0A0A0A] z-10"></div>
+        <div class="container mx-auto px-6 relative z-20 text-center">
+            <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter mb-4 italic uppercase">
+                To Hear and <span class="text-[#00D4FF]">Be Heard.</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-10 font-medium">
+                Experience the future of social audio through our latest 2D cinematic short.
+            </p>
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
+                <a href="#film" class="bg-[#00D4FF] text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-white transition-all transform hover:scale-105 cyan-glow">
+                    ▶️ WATCH THE FILM
+                </a>
+                <a href="https://raw.githubusercontent.com/sasconsul/uMic_me/refs/heads/main/artifacts/umic-deck/COMIC_SCRIPT.md" class="border border-white/20 px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition-all">
+                    GET STARTED WITH uMic
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <section id="film" class="py-24 bg-black">
+        <div class="container mx-auto px-6">
+            <div class="max-w-5xl mx-auto">
+                <div class="aspect-video bg-gray-900 rounded-2xl overflow-hidden border-4 border-[#00D4FF]/20 cyan-glow relative group">
+                    <div class="absolute inset-0 flex items-center justify-center bg-noise">
+                        <p class="text-gray-500 italic mono">[EVERY_SEAT_2D_COMIC.MP4 RENDERING...]</p>
+                    </div>
+                    </div>
+                <div class="mt-8 flex flex-col md:flex-row justify-between items-start gap-8">
+                    <div class="max-w-xl">
+                        <h2 class="text-3xl font-bold mb-4 uppercase tracking-tight italic">The Signal vs. The Noise</h2>
+                        <p class="text-gray-400 leading-relaxed text-lg">
+                            In a noisy world, distance is the enemy of ideas. We built [uMic.me](https://raw.githubusercontent.com/sasconsul/uMic_me/refs/heads/main/artifacts/umic-deck/COMIC_SCRIPT.md) to bridge the gap between the stage and the back row. No apps. No lag. Just the signal.
+                        </p>
+                    </div>
+                    <div class="bg-white/5 p-6 rounded-xl border border-white/10 italic text-sm text-[#00D4FF] mono">
+                        * Best experienced with headphones.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 border-y border-white/10">
+        <div class="container mx-auto px-6">
+            <h3 class="text-center text-4xl font-black mb-16 uppercase italic">The Zero-Friction Workflow</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div class="space-y-6 group">
+                    <div class="aspect-square bg-white/5 rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center group-hover:border-[#00D4FF] transition-colors">
+                        <span class="text-gray-600 italic mono">[PANEL 1: THE SCAN]</span>
+                    </div>
+                    <h4 class="text-2xl font-bold text-[#00D4FF]">01. SCAN</h4>
+                    <p class="text-gray-400">Scan a QR code to join the stream instantly via your browser. No App Store redirects.</p>
+                </div>
+                <div class="space-y-6 group">
+                    <div class="aspect-square bg-white/5 rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center group-hover:border-[#00D4FF] transition-colors">
+                        <span class="text-gray-600 italic mono">[PANEL 2: THE LISTEN]</span>
+                    </div>
+                    <h4 class="text-2xl font-bold text-[#00D4FF]">02. LISTEN</h4>
+                    <p class="text-gray-400">Crystal-clear audio delivered directly to your ears. Your phone becomes your personal PA system.</p>
+                </div>
+                <div class="space-y-6 group">
+                    <div class="aspect-square bg-white/5 rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center group-hover:border-[#00D4FF] transition-colors">
+                        <span class="text-gray-600 italic mono">[PANEL 3: THE ENGAGE]</span>
+                    </div>
+                    <h4 class="text-2xl font-bold text-[#00D4FF]">03. ENGAGE</h4>
+                    <p class="text-gray-400">Tap to raise your hand. Speak into your phone and be heard by the entire room via WebRTC.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 relative overflow-hidden bg-noise">
+        <div class="container mx-auto px-6 flex flex-col items-center text-center">
+            <div class="inline-block px-4 py-1 border border-[#00D4FF] text-[#00D4FF] text-xs font-bold tracking-widest uppercase mb-6 rounded">
+                Technology Proof
+            </div>
+            <h3 class="text-5xl md:text-7xl font-black italic uppercase mb-8">
+                If we can sync a <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#00D4FF] to-white">Tango,</span><br>
+                we can sync your event.
+            </h3>
+            <p class="text-gray-400 max-w-3xl text-lg mb-12">
+                We’ve pushed WebRTC to its limit. Whether it’s a 5,000-person keynote or a synchronized dance floor, 
+                [uMic.me](https://raw.githubusercontent.com/sasconsul/uMic_me/refs/heads/main/artifacts/umic-deck/COMIC_SCRIPT.md) delivers perfectly timed audio that feels like magic.
+            </p>
+            <div class="w-full max-w-4xl aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl border border-white/10 flex items-center justify-center">
+                <span class="text-gray-700 italic mono">[SILENT_TANGO_LOOP.GIF]</span>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-12 border-t border-white/10 bg-black">
+        <div class="container mx-auto px-6 text-center">
+            <div class="text-2xl font-black italic tracking-tighter mb-6">
+                uMic<span class="text-[#00D4FF]">.me</span>
+            </div>
+            <p class="text-gray-500 italic mb-8 italic">Every voice deserves to be heard.</p>
+            <nav class="flex justify-center gap-8 text-sm font-bold uppercase tracking-widest text-gray-400 mb-8">
+                <a href="https://raw.githubusercontent.com/sasconsul/uMic_me/refs/heads/main/artifacts/umic-deck/COMIC_SCRIPT.md" class="hover:text-[#00D4FF]">About</a>
+                <a href="#" class="hover:text-[#00D4FF]">Developer API</a>
+                <a href="#" class="hover:text-[#00D4FF]">Contact</a>
+            </nav>
+            <div class="text-[10px] text-gray-700 uppercase mono tracking-widest">
+                © 2026 uMic Social Audio Platforms. All Rights Reserved.
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
