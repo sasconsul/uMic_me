@@ -1,0 +1,104 @@
+@startuml attendee-flow
+title uMic.me — Attendee Flow
+
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #E8EAF6
+  DiamondBorderColor #3949AB
+  ArrowColor #0D47A1
+  FontName Helvetica
+}
+skinparam note {
+  BackgroundColor #E1F5FE
+  BorderColor #0288D1
+}
+skinparam TitleFontSize 16
+
+start
+
+:Scan QR code on flyer\nor open join URL  (/join/:token);
+
+:Join Page  (/join/:token)\nEvent title, logo, and details shown;
+
+if (Event is closed?) then (yes)
+  #Pink:"This event has ended"\nJoin blocked;
+  stop
+else (no)
+endif
+
+:Enter optional display name;
+
+:Click "Join"\nPOST /api/events/join/:token { displayName };
+note right
+  Server creates attendee record
+  Returns attendeeId, assignedId, sessionToken
+  Client saves all event metadata to sessionStorage
+end note
+
+:Navigate to Attendee Page\n(/attend/:token/:attendeeId);
+
+:WebSocket connects\nsend: join-attendee { eventId, attendeeId, attendeeToken };
+note right: Server verifies token against DB
+
+:Receive: qa-state { qaOpen }\nInitial Q&A state applied;
+
+split
+  partition "Audio Stream" #BBDEFB {
+    :Waiting for host to broadcast...;
+    :Receive: stream-available;
+    :WebRTC offer arrives from host\n(rtc-offer { sdp });
+    :Send answer → ICE negotiation;
+    :Audio stream active — Volume icon shown;
+
+    if (Stream ends?) then (yes)
+      :Receive: stream-ended;
+      :WebRTC peer connection closed;
+    endif
+  }
+split again
+  partition "Q&A — Hand Raise" #C8E6C9 {
+    :Receive: qa-opened\nRaise Hand button activates;
+
+    :Tap "Raise Hand"\nsend: raise-hand { raised: true };
+    note right
+      PATCH /api/attendees/:id { raisedHand: true }
+      Button turns yellow — "The host has been notified"
+    end note
+
+    :Waiting in the queue\n(host sees raised hand);
+
+    :Receive: speaker-mic-request { startMuted };
+
+    if (startMuted = true?) then (yes)
+      :getUserMedia → mic stream\ntrack.enabled = false (muted);
+      :Yellow banner:\n"Selected — waiting for host to open mic";
+      :Receive: speaker-unmuted\ntrack.enabled = true;
+      :Toast: "Your mic is now live";
+    else (no — immediate mic)
+      :getUserMedia → mic stream\ntrack.enabled = true;
+      :Toast: "Mic activating...";
+    endif
+
+    :Red banner: "Mic active — you are speaking live"\nWebRTC speaker uplink active → host;
+    note right
+      speaker-offer-to-host → host answers
+      ICE candidates exchanged
+      Audio flows: attendee → host (PA system)
+    end note
+
+    if (Done speaking?) then (yes)
+      :Tap "Stop Speaking"\ntrack.stop() · WebRTC uplink closed;
+    else (host closes Q&A)
+      :Receive: qa-closed\nHand lowered automatically;
+    endif
+  }
+end split
+
+:Receive: session-ended;
+note right: Sent by host on close-event or event status = "closed"
+
+#Pink:"Event has ended"\nThank-you message shown;
+
+stop
+@enduml

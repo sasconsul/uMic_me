@@ -1,0 +1,102 @@
+@startuml host-flow
+title uMic.me — Host Flow
+
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFF8E1
+  DiamondBorderColor #E65100
+  ArrowColor #BF360C
+  FontName Helvetica
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #F9A825
+}
+skinparam TitleFontSize 16
+
+start
+
+#LightSkyBlue:Landing Page  (/)\nPublic marketing home;
+
+:Sign In\nReplit Auth OIDC/PKCE;
+note right
+  Redirect → Replit OIDC provider
+  Callback → express-session cookie created
+end note
+
+:Dashboard  (/dashboard)\nList of host's events;
+
+if (Create new event?) then (yes)
+  :Open Create Event modal\n(title, logo upload, time, description);
+  :POST /api/events;
+  :Navigate to Event Control;
+else (no — manage existing)
+  :Click "Manage" on event card;
+endif
+
+:**Event Control**  (/events/:id);
+
+if (Print flyer needed?) then (yes)
+  :Open Print Flyer (/events/:id/print)\nin new browser tab;
+  note right: Browser print dialog
+endif
+
+:Click "Go Live"\nPUT /api/events/:id { status: "live" };
+
+split
+  partition "Audio Broadcast" #FFE0B2 {
+    :Click "Start Broadcast"\ngetUserMedia → mic stream;
+    :Create WebRTC peer connection\nfor each connected attendee;
+    :send: start-broadcast;
+    note right: Attendees receive stream-available
+    :Broadcasting to all attendees;
+    :Click "Stop Broadcast"\nsend: stop-broadcast;
+  }
+split again
+  partition "Q&A Session" #FFF9C4 {
+    :(Optional) Toggle:\n"Mute attendees until I open their mic";
+    :Click "Open Q&A"\nsend: open-qa { muteUntilCalled };
+    note right: Broadcasts qa-opened to all attendees
+
+    repeat
+      :Receive hand-update\nQueue re-sorts by raisedHandAt;
+      :Click "Call on" (mute mode)\nor "Give mic" (live mode)\nsend: select-speaker { attendeeId };
+      note right
+        Broadcasts speaker-selected
+        Sends speaker-mic-request { startMuted }
+        to the selected attendee only
+      end note
+
+      if (Mute mode ON?) then (yes)
+        :"Called on" panel visible\nAttendee mic connected but track.enabled = false;
+        :Click "Open Mic"\nsend: unmute-speaker { attendeeId };
+        note right: Sends speaker-unmuted to attendee
+        :Attendee mic now live;
+      else (no)
+        :Attendee mic activates immediately;
+      endif
+
+    repeat while (Q&A still open?) is (yes)
+    ->no;
+
+    :Click "Close Q&A"\nsend: close-qa;
+    note right
+      Broadcasts qa-closed
+      Attendees' raised hands cleared
+    end note
+  }
+end split
+
+:Click "End Event"\nPUT /api/events/:id { status: "closed" }\nsend: close-event;
+note right
+  Broadcasts session-ended to all clients
+  Forcibly closes all attendee WS connections
+  Broadcast stopped
+  Room deleted from memory
+end note
+
+:Return to Dashboard;
+
+stop
+@enduml

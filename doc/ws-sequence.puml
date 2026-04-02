@@ -1,0 +1,113 @@
+@startuml ws-sequence
+title uMic.me — WebSocket & WebRTC Signaling Sequence
+
+skinparam sequence {
+  ActorBorderColor #333333
+  ActorBackgroundColor #F5F5F5
+  ParticipantBorderColor #333333
+  ParticipantBackgroundColor #FFFFFF
+  LifeLineBorderColor #AAAAAA
+  ArrowColor #333333
+  DividerBorderColor #CCCCCC
+  GroupBorderColor #999999
+  NoteBackgroundColor #FFFDE7
+  NoteBorderColor #F9A825
+  FontName Helvetica
+}
+skinparam TitleFontSize 16
+
+actor Host as H
+participant "WebSocket Server\n(api-server)" as WS
+actor Attendee as A
+
+== Session Setup ==
+
+H -> WS : join-host { eventId }
+note right of WS : Verifies host ownership via DB\nCreates or joins Room
+WS --> H : room-state { attendees[], qaOpen }
+
+A -> WS : join-attendee { eventId, attendeeId, attendeeToken }
+note left of WS : Verifies sessionToken against DB
+WS --> H : attendee-joined { attendeeId, attendeeName, assignedId }
+WS --> A : qa-state { qaOpen }
+
+== Audio Broadcast (Host → Attendees) ==
+
+H -> WS : start-broadcast
+WS --> A : stream-available
+
+H -> WS : rtc-offer-to-attendee { targetId, sdp }
+WS --> A : rtc-offer { sdp }
+A -> WS : rtc-answer-to-host { sdp }
+WS --> H : rtc-answer { fromId, sdp }
+
+H -> WS : rtc-ice-to-attendee { targetId, candidate }
+WS --> A : rtc-ice-candidate { candidate }
+A -> WS : rtc-ice-to-host { candidate }
+WS --> H : rtc-ice-from-attendee { fromId, candidate }
+
+H --> A : [WebRTC audio stream — direct P2P downlink]
+
+== Q&A: Open & Hand Raise ==
+
+H -> WS : open-qa { muteUntilCalled: true|false }
+note right of WS : Room.qaOpen = true\nRoom.muteUntilCalled stored
+WS --> A : qa-opened
+
+A -> WS : raise-hand { raised: true }
+WS --> H : hand-update { attendeeId, raisedHand, raisedHandAt }
+
+== Q&A: Speaker Selection ==
+
+H -> WS : select-speaker { attendeeId }
+WS --> A : speaker-selected { attendeeId }
+note left of A : All attendees notified\n(others clear speaker state)
+
+WS --> A : speaker-mic-request { startMuted }
+note left of A
+  startMuted = Room.muteUntilCalled
+  Attendee calls getUserMedia
+  track.enabled = !startMuted
+end note
+
+A -> WS : speaker-offer-to-host { fromId, sdp }
+WS --> H : speaker-offer { fromId, sdp }
+H -> WS : speaker-answer-to-attendee { targetId, sdp }
+WS --> A : speaker-answer { sdp }
+
+A -> WS : speaker-ice-to-host { candidate }
+WS --> H : speaker-ice-from-attendee { fromId, candidate }
+H -> WS : speaker-ice-to-attendee { targetId, candidate }
+WS --> A : speaker-ice-candidate { candidate }
+
+A --> H : [WebRTC audio stream — direct P2P uplink to host / PA]
+
+== Q&A: Unmute (mute mode only) ==
+
+note over H, A : Only when muteUntilCalled = true
+
+H -> WS : unmute-speaker { attendeeId }
+WS --> A : speaker-unmuted
+note left of A : track.enabled = true\nMic goes live
+
+== Q&A: Close ==
+
+H -> WS : close-qa
+WS --> A : qa-closed
+note left of A : Raised hand cleared\nHand button disabled
+
+== End Event ==
+
+H -> WS : close-event
+note right of WS
+  DB: events.status = "closed"
+  Broadcasts session-ended
+  Closes all attendee WS connections
+  Deletes Room from memory
+end note
+
+WS --> H : session-ended
+WS --> A : session-ended
+note left of A : Full-screen "Event has ended" shown
+
+@enduml
