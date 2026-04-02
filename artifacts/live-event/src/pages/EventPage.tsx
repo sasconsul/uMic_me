@@ -38,6 +38,8 @@ export function EventPage({ eventId }: EventPageProps) {
   const [liveAttendees, setLiveAttendees] = useState<LiveAttendee[]>([]);
   const [showQr, setShowQr] = useState(false);
   const [qaOpen, setQaOpen] = useState(false);
+  const [muteUntilCalled, setMuteUntilCalled] = useState(false);
+  const [selectedSpeaker, setSelectedSpeaker] = useState<{ attendeeId: number; micOpened: boolean } | null>(null);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -88,6 +90,7 @@ export function EventPage({ eventId }: EventPageProps) {
           const { attendeeId } = msg as { attendeeId: number };
           setLiveAttendees((prev) => prev.filter((a) => a.attendeeId !== attendeeId));
           removePeerRef.current(attendeeId);
+          setSelectedSpeaker((prev) => (prev?.attendeeId === attendeeId ? null : prev));
           break;
         }
         case "hand-update": {
@@ -181,15 +184,24 @@ export function EventPage({ eventId }: EventPageProps) {
 
   const handleSelectSpeaker = (attendeeId: number) => {
     send({ type: "select-speaker", attendeeId });
-    toast.success("Speaker selected");
+    setSelectedSpeaker({ attendeeId, micOpened: false });
+    toast.success(muteUntilCalled ? "Attendee called on — click Open Mic when ready" : "Mic given to attendee");
+  };
+
+  const handleOpenMic = () => {
+    if (!selectedSpeaker) return;
+    send({ type: "unmute-speaker", attendeeId: selectedSpeaker.attendeeId });
+    setSelectedSpeaker({ ...selectedSpeaker, micOpened: true });
+    toast.success("Mic opened for speaker");
   };
 
   const handleQaToggle = () => {
     if (qaOpen) {
       send({ type: "close-qa" });
       setQaOpen(false);
+      setSelectedSpeaker(null);
     } else {
-      send({ type: "open-qa" });
+      send({ type: "open-qa", muteUntilCalled });
       setQaOpen(true);
     }
   };
@@ -362,6 +374,49 @@ export function EventPage({ eventId }: EventPageProps) {
                 {qaOpen ? "Close Q&A" : "Open Q&A"}
               </button>
             </div>
+
+            {!qaOpen && (
+              <label className="flex items-center gap-3 cursor-pointer select-none group">
+                <div
+                  role="switch"
+                  aria-checked={muteUntilCalled}
+                  onClick={() => setMuteUntilCalled((v) => !v)}
+                  className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${muteUntilCalled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${muteUntilCalled ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
+                  Mute attendees until I manually open their mic
+                </span>
+              </label>
+            )}
+
+            {qaOpen && muteUntilCalled && selectedSpeaker && (
+              <div className="bg-muted/50 border border-border rounded-lg px-4 py-3 space-y-2">
+                <p className="text-xs text-muted-foreground font-medium">Called on</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {liveAttendees.find((a) => a.attendeeId === selectedSpeaker.attendeeId)?.attendeeName ??
+                      `Attendee #${liveAttendees.find((a) => a.attendeeId === selectedSpeaker.attendeeId)?.assignedId ?? selectedSpeaker.attendeeId}`}
+                  </span>
+                  {selectedSpeaker.micOpened ? (
+                    <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                      <Mic className="w-3.5 h-3.5" />
+                      Mic open
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleOpenMic}
+                      className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <Mic className="w-3.5 h-3.5" />
+                      Open Mic
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {qaOpen && raisedHands.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">Hand Raise Queue — {raisedHands.length} waiting</p>
@@ -375,13 +430,13 @@ export function EventPage({ eventId }: EventPageProps) {
                       onClick={() => handleSelectSpeaker(a.attendeeId)}
                       className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
                     >
-                      Give mic
+                      {muteUntilCalled ? "Call on" : "Give mic"}
                     </button>
                   </div>
                 ))}
               </div>
             )}
-            {qaOpen && raisedHands.length === 0 && (
+            {qaOpen && raisedHands.length === 0 && !selectedSpeaker && (
               <p className="text-sm text-muted-foreground">Q&amp;A is open — attendees can raise their hand.</p>
             )}
             {!qaOpen && (

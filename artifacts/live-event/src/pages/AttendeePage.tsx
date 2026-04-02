@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -74,7 +74,7 @@ export function AttendeePage() {
     send: (msg) => wsSendRef.current?.(msg),
   });
 
-  const { isSpeaking, startSpeaking, stopSpeaking, handleSpeakerAnswer, handleSpeakerIce } = useSpeakerUplink({
+  const { isSpeaking, isMicMuted, startSpeaking, stopSpeaking, unmuteMic, handleSpeakerAnswer, handleSpeakerIce } = useSpeakerUplink({
     attendeeId,
     send: (msg) => wsSendRef.current?.(msg),
   });
@@ -83,12 +83,14 @@ export function AttendeePage() {
   const handleIceRef = useRef(handleIce);
   const disconnectRef = useRef(disconnect);
   const startSpeakingRef = useRef(startSpeaking);
+  const unmuteMicRef = useRef(unmuteMic);
   const handleSpeakerAnswerRef = useRef(handleSpeakerAnswer);
   const handleSpeakerIceRef = useRef(handleSpeakerIce);
   handleOfferRef.current = handleOffer;
   handleIceRef.current = handleIce;
   disconnectRef.current = disconnect;
   startSpeakingRef.current = startSpeaking;
+  unmuteMicRef.current = unmuteMic;
   handleSpeakerAnswerRef.current = handleSpeakerAnswer;
   handleSpeakerIceRef.current = handleSpeakerIce;
 
@@ -130,9 +132,20 @@ export function AttendeePage() {
           break;
         }
         case "speaker-mic-request": {
+          const { startMuted = false } = msg as { startMuted?: boolean };
           setSpeakerSelected(true);
-          toast.success("You've been selected to speak — mic activating...");
-          await startSpeakingRef.current();
+          if (startMuted) {
+            toast.info("You've been selected — your mic will open when the host is ready");
+          } else {
+            toast.success("You've been selected to speak — mic activating...");
+          }
+          await startSpeakingRef.current({ startMuted });
+          break;
+        }
+
+        case "speaker-unmuted": {
+          unmuteMicRef.current();
+          toast.success("Your mic is now live — you are speaking");
           break;
         }
         case "speaker-answer": {
@@ -234,10 +247,26 @@ export function AttendeePage() {
         </div>
 
         {speakerSelected && (
-          <div className={`border rounded-xl px-4 py-3 flex items-center gap-2 justify-center ${isSpeaking ? "bg-red-500/10 border-red-500/30 text-red-600" : "bg-green-500/10 border-green-500/30 text-green-600"}`}>
-            {isSpeaking ? <Mic className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+          <div className={`border rounded-xl px-4 py-3 flex items-center gap-2 justify-center ${
+            isSpeaking && !isMicMuted
+              ? "bg-red-500/10 border-red-500/30 text-red-600"
+              : isMicMuted
+                ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600"
+                : "bg-green-500/10 border-green-500/30 text-green-600"
+          }`}>
+            {isSpeaking && !isMicMuted ? (
+              <Mic className="w-5 h-5" />
+            ) : isMicMuted ? (
+              <MicOff className="w-5 h-5" />
+            ) : (
+              <CheckCircle className="w-5 h-5" />
+            )}
             <span className="font-medium text-sm">
-              {isSpeaking ? "Mic active — you are speaking live" : "Selected as speaker — mic activating..."}
+              {isSpeaking && !isMicMuted
+                ? "Mic active — you are speaking live"
+                : isMicMuted
+                  ? "Selected — waiting for the host to open your mic"
+                  : "Selected as speaker — mic activating..."}
             </span>
           </div>
         )}

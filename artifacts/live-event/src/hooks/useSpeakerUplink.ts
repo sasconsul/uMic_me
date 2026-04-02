@@ -8,14 +8,19 @@ interface UseSpeakerUplinkOptions {
 
 export function useSpeakerUplink({ attendeeId, send }: UseSpeakerUplinkOptions) {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(false);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const startSpeaking = useCallback(async () => {
+  const startSpeaking = useCallback(async ({ startMuted = false }: { startMuted?: boolean } = {}) => {
     if (pcRef.current) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+
+      stream.getTracks().forEach((track) => {
+        track.enabled = !startMuted;
+      });
 
       const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
       pcRef.current = pc;
@@ -32,10 +37,20 @@ export function useSpeakerUplink({ attendeeId, send }: UseSpeakerUplinkOptions) 
       await pc.setLocalDescription(offer);
       send({ type: "speaker-offer-to-host", fromId: attendeeId, sdp: offer });
       setIsSpeaking(true);
+      setIsMicMuted(startMuted);
     } catch (err) {
       console.error("Speaker uplink failed:", err);
     }
   }, [attendeeId, send]);
+
+  const unmuteMic = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => {
+        t.enabled = true;
+      });
+      setIsMicMuted(false);
+    }
+  }, []);
 
   const handleSpeakerAnswer = useCallback(async (sdp: RTCSessionDescriptionInit) => {
     if (pcRef.current) {
@@ -55,7 +70,8 @@ export function useSpeakerUplink({ attendeeId, send }: UseSpeakerUplinkOptions) 
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setIsSpeaking(false);
+    setIsMicMuted(false);
   }, []);
 
-  return { isSpeaking, startSpeaking, stopSpeaking, handleSpeakerAnswer, handleSpeakerIce };
+  return { isSpeaking, isMicMuted, startSpeaking, stopSpeaking, unmuteMic, handleSpeakerAnswer, handleSpeakerIce };
 }

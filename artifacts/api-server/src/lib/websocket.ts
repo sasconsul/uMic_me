@@ -28,6 +28,8 @@ interface Room {
   clients: Map<WebSocket, RoomClient>;
   /** Whether the host has opened Q&A — attendees can only raise hands when true */
   qaOpen: boolean;
+  /** When true, attendees' mics start muted when called on; host must send unmute-speaker */
+  muteUntilCalled: boolean;
 }
 
 const rooms = new Map<number, Room>();
@@ -160,7 +162,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false };
+            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== sessionUserId) {
             // Another verified host already owns this room
@@ -215,7 +217,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false };
             rooms.set(eventId, room);
           }
 
@@ -253,6 +255,7 @@ export function setupWebSocketServer(server: Server) {
         case "open-qa": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           currentRoom.qaOpen = true;
+          currentRoom.muteUntilCalled = Boolean(msg.muteUntilCalled);
           broadcastToAttendees(currentRoom, { type: "qa-opened" });
           break;
         }
@@ -281,8 +284,15 @@ export function setupWebSocketServer(server: Server) {
           const speakerId = Number(msg.attendeeId);
           // Notify all attendees that a speaker was selected
           broadcastToRoom(currentRoom, { type: "speaker-selected", attendeeId: speakerId }, ws);
-          // Request mic stream from the selected attendee specifically
-          sendToAttendee(currentRoom, speakerId, { type: "speaker-mic-request" });
+          // Request mic stream from the selected attendee, including the mute-until-called setting
+          sendToAttendee(currentRoom, speakerId, { type: "speaker-mic-request", startMuted: currentRoom.muteUntilCalled });
+          break;
+        }
+
+        case "unmute-speaker": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          const targetId = Number(msg.attendeeId);
+          sendToAttendee(currentRoom, targetId, { type: "speaker-unmuted" });
           break;
         }
 
