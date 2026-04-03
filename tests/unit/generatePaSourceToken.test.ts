@@ -28,27 +28,27 @@ import { generatePaSourceToken } from "../../artifacts/api-server/src/lib/websoc
 
 describe("generatePaSourceToken", () => {
   it("returns a non-empty string", () => {
-    const token = generatePaSourceToken(10001);
+    const token = generatePaSourceToken(20001);
     expect(typeof token).toBe("string");
     expect(token.length).toBeGreaterThan(0);
   });
 
   it("returns a UUID-formatted string", () => {
-    const token = generatePaSourceToken(10003);
+    const token = generatePaSourceToken(20003);
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     expect(uuidRegex.test(token)).toBe(true);
   });
 
-  it("generates a fresh token on every call — each call overwrites the previous one for that eventId", () => {
-    const first = generatePaSourceToken(10002);
-    const second = generatePaSourceToken(10002);
-    expect(second).not.toBe(first);
+  it("calling twice for the same eventId returns the same token", () => {
+    const first = generatePaSourceToken(20002);
+    const second = generatePaSourceToken(20002);
+    expect(second).toBe(first);
   });
 
-  it("generates distinct tokens for different eventIds in the same call batch", () => {
-    const tokenA = generatePaSourceToken(10004);
-    const tokenB = generatePaSourceToken(10005);
+  it("generates distinct tokens for different eventIds", () => {
+    const tokenA = generatePaSourceToken(20004);
+    const tokenB = generatePaSourceToken(20005);
     expect(tokenA).not.toBe(tokenB);
   });
 });

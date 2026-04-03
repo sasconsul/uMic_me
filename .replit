@@ -38,12 +38,12 @@ args = "regression"
 name = "typecheck"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm -r --filter='!@workspace/tests' exec tsc --noEmit"
-
 [workflows.workflow.metadata]
 isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm run typecheck"
 
 [[workflows.workflow]]
 name = "unit-tests"

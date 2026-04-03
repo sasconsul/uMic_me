@@ -38,6 +38,8 @@ interface Room {
 const paSourceTokens = new Map<number, string>();
 
 export function generatePaSourceToken(eventId: number): string {
+  const existing = paSourceTokens.get(eventId);
+  if (existing) return existing;
   const token = randomUUID();
   paSourceTokens.set(eventId, token);
   return token;
