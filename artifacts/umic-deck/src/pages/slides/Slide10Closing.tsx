@@ -141,6 +141,34 @@ export default function Slide10Closing() {
             </div>
           </div>
         </div>
+
+        <a
+          href="https://u-micme.replit.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            marginTop: "4.5vh",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.6vw",
+            padding: "1.1vh 2.4vw",
+            borderRadius: "999px",
+            background: "#00d4ff",
+            color: "#060608",
+            fontFamily: "Space Grotesk",
+            fontSize: "1.3vw",
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            textDecoration: "none",
+            boxShadow: "0 0 2vw rgba(0,212,255,0.35)",
+          }}
+        >
+          <svg width="1.1vw" height="1.1vw" viewBox="0 0 24 24" fill="none" style={{ width: "1.1vw", height: "1.1vw" }}>
+            <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" stroke="#060608" strokeWidth="2" fill="none" />
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#060608" strokeWidth="2" fill="none" />
+          </svg>
+          u-micme.replit.app
+        </a>
       </div>
 
       <div
