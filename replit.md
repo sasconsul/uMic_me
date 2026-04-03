@@ -101,3 +101,16 @@ React + Vite frontend.
 
 ### `lib/object-storage-web` (`@workspace/object-storage-web`)
 - `ObjectUploader` component + `useUpload()` hook for file uploads via presigned URLs
+
+### `tests/` (`@workspace/tests`)
+- Playwright E2E smoke tests (23 tests across 6 spec files)
+- Vitest unit tests (13 tests: generatePaSourceToken, getPaSourceToken, useAudioBroadcast)
+- `pnpm --filter @workspace/tests run test:e2e` — run E2E tests (uses system Chromium via `executablePath`)
+- `pnpm --filter @workspace/tests run test:unit` — run unit tests
+
+## Validation Commands
+
+Three named validation commands are registered:
+- **typecheck** — `pnpm -r --filter='!@workspace/tests' exec tsc --noEmit`
+- **unit-tests** — `pnpm --filter @workspace/tests run test:unit` (13 tests)
+- **regression** — `pnpm --filter @workspace/tests run test:e2e` (23 E2E tests)
