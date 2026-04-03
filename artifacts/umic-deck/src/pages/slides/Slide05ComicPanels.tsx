@@ -23,7 +23,7 @@ export default function Slide05ComicPanels() {
             letterSpacing: "0.25em",
           }}
         >
-          FOLLOW ALEX
+          FOLLOW A PRESENTATION
         </span>
         <span
           style={{
@@ -53,7 +53,7 @@ export default function Slide05ComicPanels() {
       >
         <img
           src="/umic-deck/uMic_presentation_scenes_1775241574449.jpg"
-          alt="Follow Alex — a 6-panel attendee story"
+          alt="Follow a presentation — a 6-panel attendee story"
           style={{
             maxWidth: "100%",
             maxHeight: "100%",
