@@ -4,6 +4,19 @@ import { renderHook } from "@testing-library/react";
 import { useAudioBroadcast } from "../../artifacts/live-event/src/hooks/useAudioBroadcast";
 
 beforeAll(() => {
+  const mockWebSocket = vi.fn(() => ({
+    send: vi.fn(),
+    close: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    readyState: 1,
+  }));
+  Object.defineProperty(globalThis, "WebSocket", {
+    value: Object.assign(mockWebSocket, { OPEN: 1, CONNECTING: 0, CLOSING: 2, CLOSED: 3 }),
+    writable: true,
+    configurable: true,
+  });
+
   const mockPeerConnection = () => ({
     getSenders: vi.fn(() => []),
     addTrack: vi.fn(),

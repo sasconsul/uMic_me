@@ -6,10 +6,10 @@ test.describe("Demos Page", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("shows deck-related content or link", async ({ page }) => {
+  test("shows a visible link to the uMic.me deck", async ({ page }) => {
     await page.goto("/demos");
-    const deckContent = page.getByText(/deck|Deck|Presentation|slide/i).first();
-    await expect(deckContent).toBeVisible();
+    const deckLink = page.getByRole("link", { name: /deck|Deck|Presentation|slide/i }).first();
+    await expect(deckLink).toBeVisible();
   });
 
   test("page does not show a React 404", async ({ page }) => {
