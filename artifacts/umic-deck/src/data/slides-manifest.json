@@ -34,46 +34,14 @@
   {
     "id": "f1a2b3c4-0005-4005-8005-000000000005",
     "position": 5,
-    "filepath": "src/pages/slides/Slide05ComicDivider.tsx",
+    "filepath": "src/pages/slides/Slide05ComicPanels.tsx",
     "title": "Follow Alex",
-    "description": "Comic story section divider — introduces Alex's attendee journey",
-    "speakerNotes": ""
-  },
-  {
-    "id": "f1a2b3c4-0006-4006-8006-000000000006",
-    "position": 6,
-    "filepath": "src/pages/slides/Slide06ComicArrival.tsx",
-    "title": "Panel 1: The Arrival",
-    "description": "Alex walks into the conference and spots a QR code poster",
-    "speakerNotes": ""
-  },
-  {
-    "id": "f1a2b3c4-0007-4007-8007-000000000007",
-    "position": 7,
-    "filepath": "src/pages/slides/Slide07ComicScan.tsx",
-    "title": "Panel 2: The Scan",
-    "description": "Alex scans the QR code with their phone — no app needed",
-    "speakerNotes": ""
-  },
-  {
-    "id": "f1a2b3c4-0008-4008-8008-000000000008",
-    "position": 8,
-    "filepath": "src/pages/slides/Slide08ComicStream.tsx",
-    "title": "Panel 3: Crystal Clear",
-    "description": "Audio streams directly to Alex's device — every word, perfectly clear",
-    "speakerNotes": ""
-  },
-  {
-    "id": "f1a2b3c4-0009-4009-8009-000000000009",
-    "position": 9,
-    "filepath": "src/pages/slides/Slide09ComicQA.tsx",
-    "title": "Panel 4: Raise Your Hand",
-    "description": "Q&A opens — Alex taps once to join the queue",
+    "description": "6-panel cartoon story showing the full attendee journey with uMic.me",
     "speakerNotes": ""
   },
   {
     "id": "f1a2b3c4-0010-4010-8010-000000000010",
-    "position": 10,
+    "position": 6,
     "filepath": "src/pages/slides/Slide10Closing.tsx",
     "title": "uMic.me — Closing",
     "description": "Closing brand slide with tagline and domain",
