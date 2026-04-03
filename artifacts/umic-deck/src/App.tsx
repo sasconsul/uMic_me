@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { slides } from "@/slideLoader";
@@ -35,6 +35,12 @@ function SlideEditor() {
   useEffect(() => {
     if (currentIndex === -1) return;
 
+    const postAdvance = () => {
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: "requestAdvance" }, window.location.origin);
+      }
+    };
+
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (navigationDisabledRef.current) return;
       if (event.key === " ") {
@@ -43,11 +49,12 @@ function SlideEditor() {
       if ((event.key === "ArrowLeft" || event.key === "ArrowUp") && currentIndex > 0) {
         navigate(`/slide${slides[currentIndex - 1].position}`);
       }
-      if (
-        (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === " ") &&
-        currentIndex < slides.length - 1
-      ) {
-        navigate(`/slide${slides[currentIndex + 1].position}`);
+      if (event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === " ") {
+        if (currentIndex < slides.length - 1) {
+          navigate(`/slide${slides[currentIndex + 1].position}`);
+        } else {
+          postAdvance();
+        }
       }
     };
 
@@ -57,8 +64,12 @@ function SlideEditor() {
       const fraction = event.clientX / window.innerWidth;
       if (fraction < 0.4 && currentIndex > 0) {
         navigate(`/slide${slides[currentIndex - 1].position}`);
-      } else if (fraction >= 0.4 && currentIndex < slides.length - 1) {
-        navigate(`/slide${slides[currentIndex + 1].position}`);
+      } else if (fraction >= 0.4) {
+        if (currentIndex < slides.length - 1) {
+          navigate(`/slide${slides[currentIndex + 1].position}`);
+        } else {
+          postAdvance();
+        }
       }
     };
 
@@ -71,8 +82,12 @@ function SlideEditor() {
       if (navigationDisabledRef.current) return;
       if (touchStartX.current === null) return;
       const delta = touchStartX.current - event.changedTouches[0].clientX;
-      if (delta > 50 && currentIndex < slides.length - 1) {
-        navigate(`/slide${slides[currentIndex + 1].position}`);
+      if (delta > 50) {
+        if (currentIndex < slides.length - 1) {
+          navigate(`/slide${slides[currentIndex + 1].position}`);
+        } else {
+          postAdvance();
+        }
       } else if (delta < -50 && currentIndex > 0) {
         navigate(`/slide${slides[currentIndex - 1].position}`);
       }
@@ -129,6 +144,7 @@ function SlideViewer() {
   const currentIndexRef = useRef(0);
   const touchStartX = useRef<number | null>(null);
   const isIframeReadyRef = useRef(false);
+  const referrerRef = useRef<string>(document.referrer);
 
   const [viewport, setViewport] = useState({
     w: window.innerWidth,
@@ -149,6 +165,17 @@ function SlideViewer() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  const leaveViewer = useCallback(() => {
+    const referrer = referrerRef.current;
+    if (referrer) {
+      window.location.replace(referrer);
+    } else if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.replace("/demos");
+    }
+  }, []);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
@@ -159,12 +186,19 @@ function SlideViewer() {
           currentIndexRef.current = idx;
         }
       }
+      if (event.data?.type === "requestAdvance") {
+        leaveViewer();
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [leaveViewer]);
 
   const sendNavigate = (index: number) => {
+    if (index > slides.length - 1) {
+      leaveViewer();
+      return;
+    }
     if (!isIframeReadyRef.current) return;
     const bounded = Math.max(0, Math.min(slides.length - 1, index));
     if (bounded === currentIndexRef.current) return;
@@ -349,24 +383,17 @@ function SlideViewer() {
 
           <button
             onClick={() => sendNavigate(currentIndex + 1)}
-            disabled={currentIndex === slides.length - 1}
             aria-label="Next slide"
             style={{
               width: 44,
               height: 44,
               borderRadius: "50%",
               border: "1px solid rgba(255,255,255,0.15)",
-              background:
-                currentIndex === slides.length - 1
-                  ? "transparent"
-                  : "rgba(255,255,255,0.07)",
-              color:
-                currentIndex === slides.length - 1
-                  ? "rgba(255,255,255,0.2)"
-                  : "#ffffff",
+              background: "rgba(255,255,255,0.07)",
+              color: "#ffffff",
               fontSize: 22,
               lineHeight: 1,
-              cursor: currentIndex === slides.length - 1 ? "default" : "pointer",
+              cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
