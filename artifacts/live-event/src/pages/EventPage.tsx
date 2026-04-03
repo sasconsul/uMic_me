@@ -18,6 +18,8 @@ import {
   QrCode,
   ExternalLink,
   Printer,
+  Copy,
+  Check,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -40,6 +42,9 @@ export function EventPage({ eventId }: EventPageProps) {
   const [qaOpen, setQaOpen] = useState(false);
   const [muteUntilCalled, setMuteUntilCalled] = useState(false);
   const [selectedSpeaker, setSelectedSpeaker] = useState<{ attendeeId: number; micOpened: boolean } | null>(null);
+  const [paSourceUrl, setPaSourceUrl] = useState<string | null>(null);
+  const [paSourceCopied, setPaSourceCopied] = useState(false);
+  const [paSourceConnected, setPaSourceConnected] = useState(false);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -61,6 +66,9 @@ export function EventPage({ eventId }: EventPageProps) {
   const removePeerRef = useRef<(id: number) => void>(() => {});
   const handleSpeakerOfferRef = useRef<(fromId: number, sdp: RTCSessionDescriptionInit) => Promise<void>>(async () => {});
   const handleSpeakerIceRef = useRef<(fromId: number, candidate: RTCIceCandidateInit) => Promise<void>>(async () => {});
+  const handlePaSourceOfferRef = useRef<(sdp: RTCSessionDescriptionInit) => Promise<void>>(async () => {});
+  const handlePaSourceIceRef = useRef<(candidate: RTCIceCandidateInit) => Promise<void>>(async () => {});
+  const handlePaSourceDisconnectedRef = useRef<() => void>(() => {});
 
   const handleWsMessage = useCallback(
     async (msg: WsMessage) => {
@@ -69,6 +77,7 @@ export function EventPage({ eventId }: EventPageProps) {
           const attendees = (msg.attendees as LiveAttendee[]) ?? [];
           setLiveAttendees(attendees);
           if (typeof msg.qaOpen === "boolean") setQaOpen(msg.qaOpen);
+          if (typeof msg.paSourceConnected === "boolean") setPaSourceConnected(msg.paSourceConnected as boolean);
           break;
         }
         case "attendee-joined": {
@@ -131,6 +140,27 @@ export function EventPage({ eventId }: EventPageProps) {
           await handleSpeakerIceRef.current(fromId, candidate);
           break;
         }
+        case "pa-source-connected": {
+          setPaSourceConnected(true);
+          toast.success("PA Source connected");
+          break;
+        }
+        case "pa-source-disconnected": {
+          setPaSourceConnected(false);
+          handlePaSourceDisconnectedRef.current();
+          toast.info("PA Source disconnected");
+          break;
+        }
+        case "pa-source-offer": {
+          const { sdp } = msg as { sdp: RTCSessionDescriptionInit };
+          await handlePaSourceOfferRef.current(sdp);
+          break;
+        }
+        case "pa-source-ice": {
+          const { candidate } = msg as { candidate: RTCIceCandidateInit };
+          await handlePaSourceIceRef.current(candidate);
+          break;
+        }
       }
     },
     [],
@@ -152,6 +182,9 @@ export function EventPage({ eventId }: EventPageProps) {
     removePeer,
     handleSpeakerOffer,
     handleSpeakerIce,
+    handlePaSourceOffer,
+    handlePaSourceIce,
+    handlePaSourceDisconnected,
   } = useAudioBroadcast({ send });
 
   // Keep refs in sync with latest function instances
@@ -162,6 +195,9 @@ export function EventPage({ eventId }: EventPageProps) {
   removePeerRef.current = removePeer;
   handleSpeakerOfferRef.current = handleSpeakerOffer;
   handleSpeakerIceRef.current = handleSpeakerIce;
+  handlePaSourceOfferRef.current = handlePaSourceOffer;
+  handlePaSourceIceRef.current = handlePaSourceIce;
+  handlePaSourceDisconnectedRef.current = handlePaSourceDisconnected;
 
   const handleBroadcastToggle = async () => {
     if (isBroadcasting) {
@@ -203,6 +239,29 @@ export function EventPage({ eventId }: EventPageProps) {
     } else {
       send({ type: "open-qa", muteUntilCalled });
       setQaOpen(true);
+    }
+  };
+
+  const handleGetPaSourceLink = async () => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/pa-token`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to generate PA token");
+      const data = (await res.json()) as { token: string };
+      const url = `${location.protocol}//${location.host}/pa-source/${eventId}/${data.token}`;
+      setPaSourceUrl(url);
+    } catch {
+      toast.error("Failed to generate PA source link");
+    }
+  };
+
+  const handleCopyPaSourceLink = async () => {
+    if (!paSourceUrl) return;
+    try {
+      await navigator.clipboard.writeText(paSourceUrl);
+      setPaSourceCopied(true);
+      setTimeout(() => setPaSourceCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy link");
     }
   };
 
@@ -462,6 +521,64 @@ export function EventPage({ eventId }: EventPageProps) {
         </div>
 
         <div className="space-y-6">
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Radio className="w-4 h-4 text-primary" aria-hidden="true" />
+                PA Audio Source
+              </h2>
+              <span
+                aria-live="polite"
+                className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                  paSourceConnected
+                    ? "bg-green-500/10 text-green-500 border-green-500/20"
+                    : "bg-muted text-muted-foreground border-border"
+                }`}
+              >
+                {paSourceConnected ? "Connected" : "Disconnected"}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Generate a link for your sound engineer to stream the PA mix directly to all attendees.
+            </p>
+            {!paSourceUrl ? (
+              <button
+                onClick={handleGetPaSourceLink}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                Get PA Source Link
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 text-xs text-muted-foreground break-all">
+                  <span className="flex-1 truncate">{paSourceUrl}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopyPaSourceLink}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Copy PA source link"
+                  >
+                    {paSourceCopied ? (
+                      <><Check className="w-4 h-4 text-green-500" aria-hidden="true" />Copied</>
+                    ) : (
+                      <><Copy className="w-4 h-4" aria-hidden="true" />Copy Link</>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleGetPaSourceLink}
+                    title="Regenerate link"
+                    className="px-3 py-2 rounded-lg border border-border text-sm hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    aria-label="Regenerate PA source link"
+                  >
+                    ↻
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <h2 className="font-semibold flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" aria-hidden="true" />

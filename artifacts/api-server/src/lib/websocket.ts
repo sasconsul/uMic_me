@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { Server } from "http";
+import { randomUUID } from "crypto";
 import { logger } from "./logger";
 import { getSession } from "./auth";
 import { db, eventsTable, attendeesTable } from "@workspace/db";
@@ -8,7 +9,7 @@ import { eq, and } from "drizzle-orm";
 
 interface RoomClient {
   ws: WebSocket;
-  role: "host" | "attendee";
+  role: "host" | "attendee" | "pa-source";
   attendeeId?: number;
   assignedId?: number;
   attendeeName?: string | null;
@@ -25,11 +26,25 @@ interface Room {
    */
   hostUserId: string;
   hostWs?: WebSocket;
+  paSourceWs?: WebSocket;
   clients: Map<WebSocket, RoomClient>;
   /** Whether the host has opened Q&A — attendees can only raise hands when true */
   qaOpen: boolean;
   /** When true, attendees' mics start muted when called on; host must send unmute-speaker */
   muteUntilCalled: boolean;
+}
+
+/** In-memory store for ephemeral PA source tokens: eventId → token */
+const paSourceTokens = new Map<number, string>();
+
+export function generatePaSourceToken(eventId: number): string {
+  const token = randomUUID();
+  paSourceTokens.set(eventId, token);
+  return token;
+}
+
+export function getPaSourceToken(eventId: number): string | undefined {
+  return paSourceTokens.get(eventId);
 }
 
 const rooms = new Map<number, Room>();
@@ -118,7 +133,7 @@ export function setupWebSocketServer(server: Server) {
     logger.info({ url: req.url }, "WebSocket connected");
 
     let currentRoom: Room | null = null;
-    let currentRole: "host" | "attendee" | null = null;
+    let currentRole: "host" | "attendee" | "pa-source" | null = null;
     let currentAttendeeId: number | undefined;
     let sessionUserId: string | null = null;
 
@@ -178,7 +193,12 @@ export function setupWebSocketServer(server: Server) {
           currentRole = "host";
           currentRoom.hostWs = ws;
           currentRoom.clients.set(ws, { ws, role: "host", hostUserId: sessionUserId });
-          ws.send(JSON.stringify({ type: "room-state", attendees: getAttendeeList(currentRoom), qaOpen: currentRoom.qaOpen }));
+          ws.send(JSON.stringify({
+            type: "room-state",
+            attendees: getAttendeeList(currentRoom),
+            qaOpen: currentRoom.qaOpen,
+            paSourceConnected: !!(currentRoom.paSourceWs && currentRoom.paSourceWs.readyState === WebSocket.OPEN),
+          }));
           break;
         }
 
@@ -369,6 +389,67 @@ export function setupWebSocketServer(server: Server) {
           sendToAttendee(currentRoom, targetId, { type: "speaker-ice-candidate", candidate: msg.candidate });
           break;
         }
+
+        // ─── PA Source join ──────────────────────────────────────────────────
+        case "join-pa-source": {
+          const eventId = Number(msg.eventId);
+          const paSourceToken = msg.paSourceToken as string | undefined;
+          if (!eventId || !paSourceToken) {
+            ws.send(JSON.stringify({ type: "error", message: "Missing PA source credentials" }));
+            return;
+          }
+
+          const expectedToken = paSourceTokens.get(eventId);
+          if (!expectedToken || expectedToken !== paSourceToken) {
+            ws.send(JSON.stringify({ type: "error", message: "Invalid PA source token" }));
+            return;
+          }
+
+          let room = rooms.get(eventId);
+          if (!room) {
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false };
+            rooms.set(eventId, room);
+          }
+
+          currentRoom = room;
+          currentRole = "pa-source";
+          currentRoom.paSourceWs = ws;
+          currentRoom.clients.set(ws, { ws, role: "pa-source" });
+
+          ws.send(JSON.stringify({ type: "pa-source-joined" }));
+          sendToHost(currentRoom, { type: "pa-source-connected" });
+          break;
+        }
+
+        // ─── PA Source → Host signaling ──────────────────────────────────────
+        case "pa-source-offer": {
+          if (!currentRoom || currentRole !== "pa-source") return;
+          sendToHost(currentRoom, { type: "pa-source-offer", sdp: msg.sdp });
+          break;
+        }
+
+        case "pa-source-ice": {
+          if (!currentRoom || currentRole !== "pa-source") return;
+          sendToHost(currentRoom, { type: "pa-source-ice", candidate: msg.candidate });
+          break;
+        }
+
+        // ─── Host → PA Source signaling ──────────────────────────────────────
+        case "pa-source-answer-to-source": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          if (currentRoom.paSourceWs && currentRoom.paSourceWs.readyState === WebSocket.OPEN) {
+            currentRoom.paSourceWs.send(JSON.stringify({ type: "pa-source-answer", sdp: msg.sdp }));
+          }
+          break;
+        }
+
+        case "pa-source-ice-to-source": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          if (currentRoom.paSourceWs && currentRoom.paSourceWs.readyState === WebSocket.OPEN) {
+            currentRoom.paSourceWs.send(JSON.stringify({ type: "pa-source-ice-candidate", candidate: msg.candidate }));
+          }
+          break;
+        }
       }
     });
 
@@ -379,6 +460,9 @@ export function setupWebSocketServer(server: Server) {
         currentRoom.hostWs = undefined;
       } else if (currentRole === "attendee" && currentAttendeeId !== undefined) {
         sendToHost(currentRoom, { type: "attendee-left", attendeeId: currentAttendeeId });
+      } else if (currentRole === "pa-source") {
+        currentRoom.paSourceWs = undefined;
+        sendToHost(currentRoom, { type: "pa-source-disconnected" });
       }
       if (currentRoom.clients.size === 0) {
         rooms.delete(currentRoom.eventId);

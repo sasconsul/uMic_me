@@ -11,6 +11,12 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
   const peerConns = useRef<Map<number, RTCPeerConnection>>(new Map());
   const speakerPcs = useRef<Map<number, RTCPeerConnection>>(new Map());
   const paAudioRef = useRef<HTMLAudioElement | null>(null);
+  const paPcRef = useRef<RTCPeerConnection | null>(null);
+  /**
+   * Persists the live PA audio track so it can be applied to both existing
+   * and future attendee downlink peers. When null, host mic is used.
+   */
+  const activeRelayTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const startBroadcast = useCallback(async () => {
     try {
@@ -37,6 +43,9 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     streamRef.current = null;
     peerConns.current.forEach((pc) => pc.close());
     peerConns.current.clear();
+    paPcRef.current?.close();
+    paPcRef.current = null;
+    activeRelayTrackRef.current = null;
     if (paAudioRef.current) {
       paAudioRef.current.srcObject = null;
     }
@@ -66,6 +75,16 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       send({ type: "rtc-offer-to-attendee", targetId: attendeeId, sdp: offer });
+
+      // If a PA track is already active, replace the host mic track immediately
+      const paTrack = activeRelayTrackRef.current;
+      if (paTrack) {
+        const senders = pc.getSenders();
+        const sender = senders.find((s) => s.track?.kind === paTrack.kind);
+        if (sender) {
+          sender.replaceTrack(paTrack).catch(() => {});
+        }
+      }
     },
     [send],
   );
@@ -99,6 +118,19 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
   }, []);
 
   /**
+   * Relay a track to all existing attendee downlink peers.
+   */
+  const relayTrackToAllPeers = useCallback((track: MediaStreamTrack) => {
+    peerConns.current.forEach((downPc) => {
+      const senders = downPc.getSenders();
+      const sender = senders.find((s) => s.track?.kind === track.kind);
+      if (sender) {
+        sender.replaceTrack(track).catch(() => {});
+      }
+    });
+  }, []);
+
+  /**
    * Handle speaker uplink: the selected attendee sent us their mic offer.
    * We create a receiver PC, answer the offer, then relay audio to all other attendees.
    */
@@ -110,15 +142,8 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
       pc.ontrack = (event) => {
         const [speakerStream] = event.streams;
         if (!speakerStream) return;
-        // Relay to all attendee downlink peers by replacing tracks
-        peerConns.current.forEach((downPc) => {
-          const senders = downPc.getSenders();
-          speakerStream.getTracks().forEach((track) => {
-            const sender = senders.find((s) => s.track?.kind === track.kind);
-            if (sender) {
-              sender.replaceTrack(track).catch(() => {});
-            }
-          });
+        speakerStream.getTracks().forEach((track) => {
+          relayTrackToAllPeers(track);
         });
       };
 
@@ -133,7 +158,7 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
       await pc.setLocalDescription(answer);
       send({ type: "speaker-answer-to-attendee", targetId: speakerId, sdp: answer });
     },
-    [send],
+    [send, relayTrackToAllPeers],
   );
 
   const handleSpeakerIce = useCallback(
@@ -146,6 +171,68 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     [],
   );
 
+  /**
+   * Handle PA source uplink: the PA source device sent its audio offer.
+   * We create a receiver PC, answer it, persist the relay track, then:
+   * - Immediately replace tracks on all existing attendee downlink peers
+   * - Store the track so future createPeerForAttendee calls will also use it
+   */
+  const handlePaSourceOffer = useCallback(
+    async (sdp: RTCSessionDescriptionInit) => {
+      if (paPcRef.current) {
+        paPcRef.current.close();
+      }
+
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+      paPcRef.current = pc;
+
+      pc.ontrack = (event) => {
+        const [paStream] = event.streams;
+        if (!paStream) return;
+        paStream.getTracks().forEach((track) => {
+          activeRelayTrackRef.current = track;
+          relayTrackToAllPeers(track);
+        });
+      };
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          send({ type: "pa-source-ice-to-source", candidate: e.candidate.toJSON() });
+        }
+      };
+
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      send({ type: "pa-source-answer-to-source", sdp: answer });
+    },
+    [send, relayTrackToAllPeers],
+  );
+
+  const handlePaSourceIce = useCallback(
+    async (candidate: RTCIceCandidateInit) => {
+      const pc = paPcRef.current;
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    },
+    [],
+  );
+
+  /**
+   * Called when PA source disconnects — fall back to host mic track on all peers.
+   */
+  const handlePaSourceDisconnected = useCallback(() => {
+    paPcRef.current?.close();
+    paPcRef.current = null;
+    activeRelayTrackRef.current = null;
+
+    if (!streamRef.current) return;
+    streamRef.current.getTracks().forEach((track) => {
+      relayTrackToAllPeers(track);
+    });
+  }, [relayTrackToAllPeers]);
+
   return {
     isBroadcasting,
     startBroadcast,
@@ -156,5 +243,8 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     removePeer,
     handleSpeakerOffer,
     handleSpeakerIce,
+    handlePaSourceOffer,
+    handlePaSourceIce,
+    handlePaSourceDisconnected,
   };
 }

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,10 @@ import { JoinPage } from "@/pages/JoinPage";
 import { AttendeePage } from "@/pages/AttendeePage";
 import { DemosPage } from "@/pages/DemosPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+const PaSourcePage = lazy(() =>
+  import("@/pages/PaSourcePage").then((m) => ({ default: m.PaSourcePage })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +51,11 @@ function AppRouter() {
       </Route>
       <Route path="/join/:token" component={JoinPage} />
       <Route path="/attend/:token/:attendeeId" component={AttendeePage} />
+      <Route path="/pa-source/:eventId/:token">
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+          <PaSourcePage />
+        </Suspense>
+      </Route>
       <Route>
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center">

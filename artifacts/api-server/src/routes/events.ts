@@ -13,6 +13,7 @@ import {
   GetEventStatsParams,
 } from "@workspace/api-zod";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { generatePaSourceToken } from "../lib/websocket";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -31,6 +32,23 @@ async function trySetLogoAcl(logoUrl: string | null | undefined, userId: string)
 function generateToken(): string {
   return randomBytes(24).toString("hex");
 }
+
+router.get("/public/events/:id", async (req: Request, res: Response) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  const [event] = await db
+    .select({ id: eventsTable.id, title: eventsTable.title, logoUrl: eventsTable.logoUrl, status: eventsTable.status })
+    .from(eventsTable)
+    .where(eq(eventsTable.id, eventId));
+  if (!event) {
+    res.status(404).json({ error: "Event not found" });
+    return;
+  }
+  res.json({ event });
+});
 
 router.get("/events", async (req: Request, res: Response) => {
   if (!req.isAuthenticated()) {
@@ -245,6 +263,28 @@ router.get("/events/:id/stats", async (req: Request, res: Response) => {
     raisedHandCount: Number(raisedHandCountRow?.count ?? 0),
     status: event.status,
   });
+});
+
+router.post("/events/:id/pa-token", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const eventId = Number(req.params.id);
+  if (!eventId) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  const [event] = await db
+    .select({ id: eventsTable.id, hostUserId: eventsTable.hostUserId })
+    .from(eventsTable)
+    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.user.id)));
+  if (!event) {
+    res.status(404).json({ error: "Event not found" });
+    return;
+  }
+  const token = generatePaSourceToken(eventId);
+  res.json({ token });
 });
 
 router.get("/host/stats", async (req: Request, res: Response) => {
