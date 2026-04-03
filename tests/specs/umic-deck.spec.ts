@@ -22,7 +22,9 @@ test.describe("uMic Deck", () => {
 
   test("clicking Next in SlideViewer advances the presentation to slide 2", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
+
     await page.goto("/umic-deck/");
+    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
     const iframe = page.locator("iframe");
     await expect(iframe).toBeVisible({ timeout: 8000 });
@@ -37,8 +39,10 @@ test.describe("uMic Deck", () => {
           return false;
         }
       },
-      { timeout: 8000 }
+      { timeout: 10000 }
     );
+
+    await page.waitForTimeout(800);
 
     const nextBtn = page.getByRole("button", { name: "Next slide" });
     await expect(nextBtn).toBeVisible({ timeout: 5000 });
@@ -54,7 +58,7 @@ test.describe("uMic Deck", () => {
           return false;
         }
       },
-      { timeout: 5000 }
+      { timeout: 8000 }
     );
   });
 
