@@ -6,15 +6,14 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable, eventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
 import {
   clearSession,
   getOidcConfig,
   getSessionId,
   createSession,
   deleteSession,
-  GOOGLE_ISSUER_URL,
+  ISSUER_URL,
   SESSION_COOKIE,
   SESSION_TTL,
   type SessionData,
@@ -60,31 +59,13 @@ function getSafeReturnTo(value: unknown): string {
 }
 
 async function upsertUser(claims: Record<string, unknown>): Promise<AuthUser> {
-  const googleId = claims.sub as string;
-  const email = (claims.email as string) || null;
-
   const userData = {
-    id: googleId,
-    email,
-    firstName: (claims.given_name as string) || (claims.first_name as string) || null,
-    lastName: (claims.family_name as string) || (claims.last_name as string) || null,
-    profileImageUrl: (claims.picture || claims.profile_image_url) as string | null,
+    id: claims.sub as string,
+    email: (claims.email as string) || null,
+    firstName: (claims.first_name as string) || null,
+    lastName: (claims.last_name as string) || null,
+    profileImageUrl: (claims.profile_image_url || claims.picture) as string | null,
   };
-
-  if (email) {
-    const [existing] = await db
-      .select({ id: usersTable.id })
-      .from(usersTable)
-      .where(eq(usersTable.email, email));
-
-    if (existing && existing.id !== googleId) {
-      await db
-        .update(eventsTable)
-        .set({ hostUserId: googleId })
-        .where(eq(eventsTable.hostUserId, existing.id));
-      await db.delete(usersTable).where(eq(usersTable.id, existing.id));
-    }
-  }
 
   const [user] = await db
     .insert(usersTable)
@@ -127,13 +108,12 @@ router.get("/login", async (req: Request, res: Response) => {
 
   const redirectTo = oidc.buildAuthorizationUrl(config, {
     redirect_uri: callbackUrl,
-    scope: "openid email profile",
+    scope: "openid email profile offline_access",
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
+    prompt: "login consent",
     state,
     nonce,
-    access_type: "offline",
-    prompt: "consent",
   });
 
   setOidcCookie(res, "code_verifier", codeVerifier);
@@ -203,10 +183,18 @@ router.get("/callback", async (req: Request, res: Response) => {
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
+  const config = await getOidcConfig();
   const origin = getOrigin(req);
+
   const sid = getSessionId(req);
   await clearSession(res, sid);
-  res.redirect(origin);
+
+  const endSessionUrl = oidc.buildEndSessionUrl(config, {
+    client_id: process.env.REPL_ID!,
+    post_logout_redirect_uri: origin,
+  });
+
+  res.redirect(endSessionUrl.href);
 });
 
 router.post(
@@ -226,7 +214,7 @@ router.post(
       const callbackUrl = new URL(redirect_uri);
       callbackUrl.searchParams.set("code", code);
       callbackUrl.searchParams.set("state", state);
-      callbackUrl.searchParams.set("iss", GOOGLE_ISSUER_URL);
+      callbackUrl.searchParams.set("iss", ISSUER_URL);
 
       const tokens = await oidc.authorizationCodeGrant(config, callbackUrl, {
         pkceCodeVerifier: code_verifier,
