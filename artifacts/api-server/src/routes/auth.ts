@@ -6,7 +6,8 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, eventsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -59,13 +60,31 @@ function getSafeReturnTo(value: unknown): string {
 }
 
 async function upsertUser(claims: Record<string, unknown>): Promise<AuthUser> {
+  const googleId = claims.sub as string;
+  const email = (claims.email as string) || null;
+
   const userData = {
-    id: claims.sub as string,
-    email: (claims.email as string) || null,
+    id: googleId,
+    email,
     firstName: (claims.given_name as string) || (claims.first_name as string) || null,
     lastName: (claims.family_name as string) || (claims.last_name as string) || null,
     profileImageUrl: (claims.picture || claims.profile_image_url) as string | null,
   };
+
+  if (email) {
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email));
+
+    if (existing && existing.id !== googleId) {
+      await db
+        .update(eventsTable)
+        .set({ hostUserId: googleId })
+        .where(eq(eventsTable.hostUserId, existing.id));
+      await db.delete(usersTable).where(eq(usersTable.id, existing.id));
+    }
+  }
 
   const [user] = await db
     .insert(usersTable)
