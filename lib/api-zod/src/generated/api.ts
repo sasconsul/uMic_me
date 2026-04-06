@@ -321,6 +321,8 @@ export const JoinEventResponse = zod.object({
     startTime: zod.coerce.date().nullish(),
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
+    flyerTagline: zod.string().nullish(),
+    flyerOptions: FlyerOptionsSchema,
     createdAt: zod.coerce.date(),
   }),
   sessionToken: zod

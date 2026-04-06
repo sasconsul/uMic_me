@@ -86,6 +86,13 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
   const update = <K extends keyof FlyerOptions>(key: K, value: FlyerOptions[K]) => {
     setOptions((prev) => {
       const next = { ...prev, [key]: value };
@@ -94,7 +101,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
         const { tagline, ...rest } = next;
         updateEvent.mutate({
           id: eventId,
-          data: { flyerTagline: tagline, flyerOptions: rest },
+          data: { flyerTagline: tagline || null, flyerOptions: rest },
         });
       }, 800);
       return next;

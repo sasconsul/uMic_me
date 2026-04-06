@@ -20,5 +20,6 @@ export interface UpdateEventBody {
   status?: UpdateEventBodyStatus;
   /** @nullable */
   flyerTagline?: string | null;
+  /** @nullable */
   flyerOptions?: FlyerOptions | null;
 }

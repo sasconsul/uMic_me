@@ -22,6 +22,7 @@ export interface Event {
   qrCodeToken: string;
   /** @nullable */
   flyerTagline?: string | null;
+  /** @nullable */
   flyerOptions?: FlyerOptions | null;
   createdAt: Date;
 }

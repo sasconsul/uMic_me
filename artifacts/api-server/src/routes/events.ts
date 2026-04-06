@@ -87,8 +87,8 @@ router.post("/events", async (req: Request, res: Response) => {
       logoUrl: logoUrl ?? null,
       promoText: promoText ?? null,
       startTime: startTime ? new Date(startTime) : null,
-      qrCodeToken,
       flyerTagline: flyerTagline ?? null,
+      qrCodeToken,
       flyerOptions: flyerOptions ?? null,
     })
     .returning();
