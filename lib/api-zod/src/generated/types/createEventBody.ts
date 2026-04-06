@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+import type { FlyerOptions } from "./flyerOptions";
+
 export interface CreateEventBody {
   /** @minLength 1 */
   title: string;
@@ -15,4 +17,7 @@ export interface CreateEventBody {
   promoText?: string | null;
   /** @nullable */
   startTime?: Date | null;
+  /** @nullable */
+  flyerTagline?: string | null;
+  flyerOptions?: FlyerOptions | null;
 }

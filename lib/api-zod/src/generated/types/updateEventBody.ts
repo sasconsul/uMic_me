@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { UpdateEventBodyStatus } from "./updateEventBodyStatus";
+import type { FlyerOptions } from "./flyerOptions";
 
 export interface UpdateEventBody {
   /** @minLength 1 */
@@ -17,4 +18,7 @@ export interface UpdateEventBody {
   /** @nullable */
   startTime?: Date | null;
   status?: UpdateEventBodyStatus;
+  /** @nullable */
+  flyerTagline?: string | null;
+  flyerOptions?: FlyerOptions | null;
 }

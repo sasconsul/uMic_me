@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,6 +11,8 @@ export const eventsTable = pgTable("events", {
   startTime: timestamp("start_time", { withTimezone: true }),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   qrCodeToken: varchar("qr_code_token", { length: 64 }).notNull().unique(),
+  flyerTagline: text("flyer_tagline"),
+  flyerOptions: jsonb("flyer_options"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

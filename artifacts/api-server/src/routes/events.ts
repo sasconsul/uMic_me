@@ -76,7 +76,7 @@ router.post("/events", async (req: Request, res: Response) => {
     res.status(400).json({ error: "Invalid request body" });
     return;
   }
-  const { title, logoUrl, promoText, startTime } = parsed.data;
+  const { title, logoUrl, promoText, startTime, flyerTagline, flyerOptions } = parsed.data;
   const qrCodeToken = generateToken();
   await trySetLogoAcl(logoUrl, req.user.id);
   const [event] = await db
@@ -88,6 +88,8 @@ router.post("/events", async (req: Request, res: Response) => {
       promoText: promoText ?? null,
       startTime: startTime ? new Date(startTime) : null,
       qrCodeToken,
+      flyerTagline: flyerTagline ?? null,
+      flyerOptions: flyerOptions ?? null,
     })
     .returning();
   res.status(201).json({ event });
@@ -142,7 +144,7 @@ router.patch("/events/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  const { title, logoUrl, promoText, startTime, status } = parsed.data;
+  const { title, logoUrl, promoText, startTime, status, flyerTagline, flyerOptions } = parsed.data;
   if (logoUrl !== undefined) await trySetLogoAcl(logoUrl, req.user.id);
   const updateData: Partial<typeof eventsTable.$inferInsert> = {};
   if (title !== undefined) updateData.title = title;
@@ -150,6 +152,8 @@ router.patch("/events/:id", async (req: Request, res: Response) => {
   if (promoText !== undefined) updateData.promoText = promoText;
   if (startTime !== undefined) updateData.startTime = startTime ? new Date(startTime) : null;
   if (status !== undefined) updateData.status = status;
+  if (flyerTagline !== undefined) updateData.flyerTagline = flyerTagline;
+  if (flyerOptions !== undefined) updateData.flyerOptions = flyerOptions ?? null;
 
   const [event] = await db
     .update(eventsTable)

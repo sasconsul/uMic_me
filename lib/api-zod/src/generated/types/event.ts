@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EventStatus } from "./eventStatus";
+import type { FlyerOptions } from "./flyerOptions";
 
 export interface Event {
   id: number;
@@ -19,5 +20,8 @@ export interface Event {
   startTime?: Date | null;
   status: EventStatus;
   qrCodeToken: string;
+  /** @nullable */
+  flyerTagline?: string | null;
+  flyerOptions?: FlyerOptions | null;
   createdAt: Date;
 }

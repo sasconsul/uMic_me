@@ -136,6 +136,19 @@ export const GetStorageObjectParams = zod.object({
 });
 
 /**
+ * Flyer display preferences stored per-event.
+ */
+export const FlyerOptionsSchema = zod.object({
+  colorScheme: zod.enum(["light", "dark", "custom"]).optional(),
+  accentColor: zod.string().optional(),
+  showLogo: zod.boolean().optional(),
+  showPromoText: zod.boolean().optional(),
+  showStartTime: zod.boolean().optional(),
+  showUrl: zod.boolean().optional(),
+  layout: zod.enum(["portrait", "landscape"]).optional(),
+}).nullish();
+
+/**
  * @summary List events for the authenticated host
  */
 export const ListEventsResponse = zod.object({
@@ -149,6 +162,8 @@ export const ListEventsResponse = zod.object({
       startTime: zod.coerce.date().nullish(),
       status: zod.enum(["pending", "live", "closed"]),
       qrCodeToken: zod.string(),
+      flyerTagline: zod.string().nullish(),
+      flyerOptions: FlyerOptionsSchema,
       createdAt: zod.coerce.date(),
     }),
   ),
@@ -163,6 +178,8 @@ export const CreateEventBody = zod.object({
   logoUrl: zod.string().nullish(),
   promoText: zod.string().nullish(),
   startTime: zod.coerce.date().nullish(),
+  flyerTagline: zod.string().nullish(),
+  flyerOptions: FlyerOptionsSchema,
 });
 
 /**
@@ -182,6 +199,8 @@ export const GetEventResponse = zod.object({
     startTime: zod.coerce.date().nullish(),
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
+    flyerTagline: zod.string().nullish(),
+    flyerOptions: FlyerOptionsSchema,
     createdAt: zod.coerce.date(),
   }),
 });
@@ -199,6 +218,8 @@ export const UpdateEventBody = zod.object({
   promoText: zod.string().nullish(),
   startTime: zod.coerce.date().nullish(),
   status: zod.enum(["pending", "live", "closed"]).optional(),
+  flyerTagline: zod.string().nullish(),
+  flyerOptions: FlyerOptionsSchema,
 });
 
 export const UpdateEventResponse = zod.object({
@@ -211,6 +232,8 @@ export const UpdateEventResponse = zod.object({
     startTime: zod.coerce.date().nullish(),
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
+    flyerTagline: zod.string().nullish(),
+    flyerOptions: FlyerOptionsSchema,
     createdAt: zod.coerce.date(),
   }),
 });

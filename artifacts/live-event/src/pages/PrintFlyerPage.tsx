@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useGetEvent } from "@workspace/api-client-react";
+import { useState, useEffect, useRef } from "react";
+import { useGetEvent, useUpdateEvent } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Printer, Calendar, Palette, Eye, EyeOff, ArrowLeft, Layout } from "lucide-react";
 import { useLocation } from "wouter";
@@ -46,24 +46,60 @@ const SCHEME_STYLES: Record<ColorScheme, { bg: string; text: string; subtext: st
   },
 };
 
+const DEFAULT_OPTIONS: FlyerOptions = {
+  colorScheme: "light",
+  accentColor: "#1a1a1a",
+  showLogo: true,
+  showPromoText: true,
+  showStartTime: true,
+  showUrl: true,
+  layout: "portrait",
+  tagline: "Scan to join the live event",
+};
+
 export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
   const [, navigate] = useLocation();
   const { data: eventData } = useGetEvent(eventId);
   const event = eventData?.event;
+  const initializedRef = useRef(false);
 
-  const [options, setOptions] = useState<FlyerOptions>({
-    colorScheme: "light",
-    accentColor: "#1a1a1a",
-    showLogo: true,
-    showPromoText: true,
-    showStartTime: true,
-    showUrl: true,
-    layout: "portrait",
-    tagline: "Scan to join the live event",
-  });
+  const updateEvent = useUpdateEvent();
 
-  const update = <K extends keyof FlyerOptions>(key: K, value: FlyerOptions[K]) =>
-    setOptions((prev) => ({ ...prev, [key]: value }));
+  const [options, setOptions] = useState<FlyerOptions>(DEFAULT_OPTIONS);
+
+  useEffect(() => {
+    if (event && !initializedRef.current) {
+      initializedRef.current = true;
+      const saved = event.flyerOptions as Partial<FlyerOptions> | null | undefined;
+      setOptions({
+        colorScheme: saved?.colorScheme ?? DEFAULT_OPTIONS.colorScheme,
+        accentColor: saved?.accentColor ?? DEFAULT_OPTIONS.accentColor,
+        showLogo: saved?.showLogo ?? DEFAULT_OPTIONS.showLogo,
+        showPromoText: saved?.showPromoText ?? DEFAULT_OPTIONS.showPromoText,
+        showStartTime: saved?.showStartTime ?? DEFAULT_OPTIONS.showStartTime,
+        showUrl: saved?.showUrl ?? DEFAULT_OPTIONS.showUrl,
+        layout: saved?.layout ?? DEFAULT_OPTIONS.layout,
+        tagline: event.flyerTagline ?? DEFAULT_OPTIONS.tagline,
+      });
+    }
+  }, [event]);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const update = <K extends keyof FlyerOptions>(key: K, value: FlyerOptions[K]) => {
+    setOptions((prev) => {
+      const next = { ...prev, [key]: value };
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        const { tagline, ...rest } = next;
+        updateEvent.mutate({
+          id: eventId,
+          data: { flyerTagline: tagline, flyerOptions: rest },
+        });
+      }, 800);
+      return next;
+    });
+  };
 
   const joinUrl = event
     ? `${window.location.protocol}//${window.location.host}/join/${event.qrCodeToken}`
@@ -217,14 +253,19 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
 
           {/* Tagline */}
           <section className="space-y-3">
-            <label htmlFor="tagline" className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tagline</label>
-            <input
+            <label htmlFor="tagline" className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Tagline
+              {updateEvent.isPending && (
+                <span className="ml-2 text-muted-foreground/50 font-normal normal-case tracking-normal">Saving…</span>
+              )}
+            </label>
+            <textarea
               id="tagline"
-              type="text"
               value={options.tagline}
               onChange={(e) => update("tagline", e.target.value)}
               placeholder="Scan to join..."
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary resize-none"
             />
           </section>
         </aside>
@@ -297,7 +338,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
 
                 {/* Right: QR + join info */}
                 <div className={`w-80 flex flex-col items-center justify-center px-10 py-12 relative z-10 border-l ${scheme.border}`}>
-                  <p className={`text-xs font-semibold uppercase tracking-widest mb-5 ${scheme.subtext}`}>
+                  <p className={`text-xs font-semibold uppercase tracking-widest mb-5 whitespace-pre-line text-center ${scheme.subtext}`}>
                     {options.tagline}
                   </p>
 
@@ -358,7 +399,7 @@ export function PrintFlyerPage({ eventId }: PrintFlyerPageProps) {
                 <div className={`w-16 border-t my-8 ${scheme.border}`} />
 
                 {/* Tagline */}
-                <p className={`text-xs font-semibold uppercase tracking-widest mb-6 ${scheme.subtext}`}>
+                <p className={`text-xs font-semibold uppercase tracking-widest mb-6 whitespace-pre-line ${scheme.subtext}`}>
                   {options.tagline}
                 </p>
 

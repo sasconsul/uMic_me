@@ -5,6 +5,7 @@ import {
   useUpdateEvent,
   useListAttendees,
 } from "@workspace/api-client-react";
+import { useUpload } from "@workspace/object-storage-web";
 import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioBroadcast } from "@/hooks/useAudioBroadcast";
 import { toast } from "sonner";
@@ -20,6 +21,10 @@ import {
   Printer,
   Copy,
   Check,
+  Pencil,
+  Save,
+  X,
+  ImagePlus,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -49,6 +54,47 @@ export function EventPage({ eventId }: EventPageProps) {
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPromoText, setEditPromoText] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editLogoUrl, setEditLogoUrl] = useState<string | null>(null);
+  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: (res) => {
+      const objectPath = res.objectPath;
+      const serveUrl = objectPath.startsWith("/objects/")
+        ? `/api/storage${objectPath}`
+        : objectPath;
+      setEditLogoUrl(serveUrl);
+      toast.success("Logo uploaded");
+    },
+    onError: () => toast.error("Logo upload failed"),
+  });
+
+  useEffect(() => {
+    if (event && editOpen) {
+      setEditTitle(event.title);
+      setEditPromoText(event.promoText ?? "");
+      setEditStartTime(
+        event.startTime
+          ? format(new Date(event.startTime), "yyyy-MM-dd'T'HH:mm")
+          : ""
+      );
+      setEditLogoUrl(event.logoUrl ?? null);
+      setEditLogoPreview(null);
+    }
+  }, [event, editOpen]);
+
+  const handleEditLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditLogoPreview(URL.createObjectURL(file));
+    await uploadFile(file);
+  };
+
   const updateEvent = useUpdateEvent({
     mutation: {
       onSuccess: () => {
@@ -57,6 +103,28 @@ export function EventPage({ eventId }: EventPageProps) {
       onError: () => toast.error("Failed to update event"),
     },
   });
+
+  const handleSaveDetails = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim()) return;
+    updateEvent.mutate(
+      {
+        id: eventId,
+        data: {
+          title: editTitle.trim(),
+          promoText: editPromoText || null,
+          startTime: editStartTime ? new Date(editStartTime).toISOString() : null,
+          logoUrl: editLogoUrl,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Event updated");
+          setEditOpen(false);
+        },
+      }
+    );
+  };
 
   // Refs for mutable values used inside stable WS message callback to avoid stale closures
   const isBroadcastingRef = useRef(false);
@@ -613,12 +681,150 @@ export function EventPage({ eventId }: EventPageProps) {
             )}
           </div>
 
-          {event.promoText && (
-            <div className="bg-card border border-border rounded-xl p-6 space-y-2">
-              <h3 className="font-semibold text-sm">Event Description</h3>
-              <p className="text-sm text-muted-foreground">{event.promoText}</p>
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-primary" aria-hidden="true" />
+                Event Details
+              </h2>
+              {!editOpen && (
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                >
+                  Edit
+                </button>
+              )}
             </div>
-          )}
+
+            {!editOpen ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <span className="font-medium text-foreground w-20 shrink-0">Title</span>
+                  <span className="truncate">{event.title}</span>
+                </div>
+                {event.startTime && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium text-foreground w-20 shrink-0">Start</span>
+                    <span>{format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}</span>
+                  </div>
+                )}
+                {event.logoUrl && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-foreground w-20 shrink-0">Logo</span>
+                    <img src={event.logoUrl} alt="Event logo" className="h-8 w-auto rounded object-contain border border-border" />
+                  </div>
+                )}
+                {event.promoText && (
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium text-foreground w-20 shrink-0">Desc.</span>
+                    <span className="line-clamp-3">{event.promoText}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSaveDetails} className="space-y-3">
+                <div className="space-y-1">
+                  <label htmlFor="edit-title" className="text-xs font-medium text-muted-foreground">Title</label>
+                  <input
+                    id="edit-title"
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                    className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="edit-start-time" className="text-xs font-medium text-muted-foreground">Start Time</label>
+                  <input
+                    id="edit-start-time"
+                    type="datetime-local"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Logo</label>
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditLogoSelect}
+                    className="hidden"
+                    aria-label="Upload event logo"
+                  />
+                  {editLogoUrl ? (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={editLogoPreview ?? editLogoUrl}
+                        alt="Logo preview"
+                        className="h-10 w-auto rounded object-contain border border-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setEditLogoUrl(null); setEditLogoPreview(null); }}
+                        className="text-xs text-destructive hover:underline"
+                      >
+                        Remove
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => editFileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="text-xs text-primary hover:underline disabled:opacity-50"
+                      >
+                        {isUploading ? "Uploading..." : "Change"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => editFileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-2 border border-dashed border-border rounded-lg px-3 py-2 text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <ImagePlus className="w-3.5 h-3.5" aria-hidden="true" />
+                      {isUploading ? "Uploading..." : "Upload logo"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="edit-promo" className="text-xs font-medium text-muted-foreground">Description</label>
+                  <textarea
+                    id="edit-promo"
+                    value={editPromoText}
+                    onChange={(e) => setEditPromoText(e.target.value)}
+                    placeholder="Add event details..."
+                    rows={3}
+                    className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <X className="w-3 h-3" aria-hidden="true" /> Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updateEvent.isPending || !editTitle.trim() || isUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <Save className="w-3 h-3" aria-hidden="true" />
+                    {updateEvent.isPending ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </main>
     </div>

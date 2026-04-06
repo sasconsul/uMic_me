@@ -17,6 +17,7 @@ export * from "./createEventBody";
 export * from "./deleteSuccess";
 export * from "./errorEnvelope";
 export * from "./event";
+export * from "./flyerOptions";
 export * from "./eventListResponse";
 export * from "./eventResponse";
 export * from "./eventStatsResponse";

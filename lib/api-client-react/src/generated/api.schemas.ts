@@ -78,6 +78,16 @@ export const EventStatus = {
   closed: "closed",
 } as const;
 
+export interface FlyerOptions {
+  colorScheme?: "light" | "dark" | "custom";
+  accentColor?: string;
+  showLogo?: boolean;
+  showPromoText?: boolean;
+  showStartTime?: boolean;
+  showUrl?: boolean;
+  layout?: "portrait" | "landscape";
+}
+
 export interface Event {
   id: number;
   hostUserId: string;
@@ -90,6 +100,10 @@ export interface Event {
   startTime?: string | null;
   status: EventStatus;
   qrCodeToken: string;
+  /** @nullable */
+  flyerTagline?: string | null;
+  /** @nullable */
+  flyerOptions?: FlyerOptions | null;
   createdAt: string;
 }
 
@@ -102,6 +116,10 @@ export interface CreateEventBody {
   promoText?: string | null;
   /** @nullable */
   startTime?: string | null;
+  /** @nullable */
+  flyerTagline?: string | null;
+  /** @nullable */
+  flyerOptions?: FlyerOptions | null;
 }
 
 export type UpdateEventBodyStatus =
@@ -123,6 +141,10 @@ export interface UpdateEventBody {
   /** @nullable */
   startTime?: string | null;
   status?: UpdateEventBodyStatus;
+  /** @nullable */
+  flyerTagline?: string | null;
+  /** @nullable */
+  flyerOptions?: FlyerOptions | null;
 }
 
 export interface EventResponse {
