@@ -21,7 +21,10 @@ const objectStorageService = new ObjectStorageService();
 async function trySetLogoAcl(logoUrl: string | null | undefined, userId: string): Promise<void> {
   if (!logoUrl) return;
   try {
-    await objectStorageService.trySetObjectEntityAclPolicy(logoUrl, {
+    const objectPath = logoUrl.startsWith("/api/storage")
+      ? logoUrl.slice("/api/storage".length)
+      : logoUrl;
+    await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
       owner: userId,
       visibility: "public",
     });
@@ -112,6 +115,7 @@ router.get("/events/:id", async (req: Request, res: Response) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  trySetLogoAcl(event.logoUrl, req.user.id);
   res.json({ event });
 });
 
