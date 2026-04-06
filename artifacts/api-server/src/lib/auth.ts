@@ -4,7 +4,7 @@ import { type Request, type Response } from "express";
 import { db, sessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
+export const GOOGLE_ISSUER_URL = "https://accounts.google.com";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -28,8 +28,9 @@ let oidcConfig: client.Configuration | null = null;
 export async function getOidcConfig(): Promise<client.Configuration> {
   if (!oidcConfig) {
     oidcConfig = await client.discovery(
-      new URL(ISSUER_URL),
-      process.env.REPL_ID!,
+      new URL(GOOGLE_ISSUER_URL),
+      process.env.GOOGLE_CLIENT_ID!,
+      process.env.GOOGLE_CLIENT_SECRET!,
     );
   }
   return oidcConfig;
