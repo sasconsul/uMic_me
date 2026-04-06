@@ -681,10 +681,6 @@ export function EventPage({ eventId }: EventPageProps) {
             )}
           </div>
 
-                  Edit
-                </button>
-              )}
-            </div>
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-sm flex items-center gap-2">
