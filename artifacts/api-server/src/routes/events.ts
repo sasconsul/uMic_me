@@ -19,9 +19,9 @@ import { generatePaSourceToken } from "../lib/websocket";
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
-function requireAuth(req: Request & { userId?: string }, res: Response, next: NextFunction) {
+function requireAuth(req: Request, res: Response, next: NextFunction) {
   const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
+  const userId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
