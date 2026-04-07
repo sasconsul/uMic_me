@@ -6,25 +6,10 @@ export function BroadcastPro() {
   return (
     <div className="min-h-screen bg-[#050505] text-gray-300 font-sans selection:bg-amber-500/30">
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes vu-bounce {
-          0%, 100% { height: 10%; opacity: 0.5; }
-          50% { height: 100%; opacity: 1; }
-        }
         @keyframes pulse-live {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-        .vu-bar {
-          animation: vu-bounce 1s ease-in-out infinite;
-          transform-origin: bottom;
-        }
-        .vu-bar:nth-child(1) { animation-duration: 0.8s; animation-delay: 0.1s; }
-        .vu-bar:nth-child(2) { animation-duration: 1.2s; animation-delay: 0.4s; }
-        .vu-bar:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.2s; }
-        .vu-bar:nth-child(4) { animation-duration: 1.1s; animation-delay: 0.6s; }
-        .vu-bar:nth-child(5) { animation-duration: 0.7s; animation-delay: 0.3s; }
-        .vu-bar:nth-child(6) { animation-duration: 1.3s; animation-delay: 0.5s; }
-        .vu-bar:nth-child(7) { animation-duration: 1.0s; animation-delay: 0.1s; }
       `}} />
 
       {/* Navigation */}
@@ -92,9 +77,12 @@ export function BroadcastPro() {
               </div>
               
               <div className="flex-1 flex items-end justify-center gap-3 py-8">
-                {[...Array(7)].map((_, i) => (
+                {[65, 85, 50, 95, 70, 80, 45].map((pct, i) => (
                   <div key={i} className="w-12 h-full bg-gray-800 relative rounded-sm overflow-hidden">
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-green-500 via-yellow-500 to-red-500 vu-bar" />
+                    <div
+                      className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-green-500 via-yellow-500 to-red-500"
+                      style={{ height: `${pct}%` }}
+                    />
                   </div>
                 ))}
               </div>
