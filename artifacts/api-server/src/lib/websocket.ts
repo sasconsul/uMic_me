@@ -141,15 +141,17 @@ export function setupWebSocketServer(server: Server) {
     let currentAttendeeId: number | undefined;
     let sessionUserId: string | null = null;
 
-    // Buffer messages received before auth completes to avoid dropping join messages
-    // sent immediately in the browser's ws.onopen handler.
+    // Buffer messages received before auth completes (and while draining the queue)
+    // to avoid dropping join messages sent immediately in the browser's ws.onopen handler.
     const messageQueue: Buffer[] = [];
     let authDone = false;
+    let isDraining = false;
 
     // Register the message handler immediately so no messages are dropped.
-    // Messages that arrive before auth completes are queued and processed after.
+    // Messages that arrive before auth completes, or while draining, are queued
+    // so they are processed in strict receive order.
     ws.on("message", (raw: Buffer) => {
-      if (!authDone) {
+      if (!authDone || isDraining) {
         messageQueue.push(raw);
         return;
       }
@@ -184,10 +186,16 @@ export function setupWebSocketServer(server: Server) {
 
     // Drain buffered messages sequentially so join-host / join-attendee are processed
     // in the order they were received, and subsequent messages see the correct state.
-    for (const raw of messageQueue) {
-      await handleMessage(raw);
+    // Keep isDraining=true so messages that arrive at each await point are queued
+    // rather than dispatched immediately, preserving strict receive order.
+    isDraining = true;
+    while (messageQueue.length > 0) {
+      const pending = messageQueue.splice(0);
+      for (const raw of pending) {
+        await handleMessage(raw);
+      }
     }
-    messageQueue.length = 0;
+    isDraining = false;
 
     // ─── Message handler ──────────────────────────────────────────────────────
     async function handleMessage(raw: Buffer) {
