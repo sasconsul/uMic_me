@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/react";
 import { useLocation } from "wouter";
-import { Mic, QrCode, Users, Radio } from "lucide-react";
+import { Mic, QrCode, Users, Radio, CalendarPlus, Printer } from "lucide-react";
 import { Link } from "wouter";
 import panel2 from "@assets/panel_2_scanning_1775592496171.png";
 import panel3 from "@assets/panel_3_listening_1775592496177.png";
@@ -121,19 +121,36 @@ export function LandingPage() {
 
         <section className="mt-16 max-w-5xl w-full">
           <h2 className="text-2xl font-bold mb-6 text-left">Host meeting preparation</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div
-              role="listitem"
-              className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
-            >
-              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
-                <Mic className="w-5 h-5 text-primary" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list" aria-label="Host features">
+            {[
+              {
+                icon: CalendarPlus,
+                title: "Event Setup",
+                desc: "Create your event in seconds — set a title, add a logo, and get a unique join link instantly.",
+              },
+              {
+                icon: Printer,
+                title: "Print a Flyer",
+                desc: "Customise and print a branded QR code flyer to post at your venue before the event.",
+              },
+              {
+                icon: Mic,
+                title: "PA Integration",
+                desc: "Simultaneously stream to your PA system and individual devices.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                role="listitem"
+                className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
+              >
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="text-sm text-muted-foreground">{desc}</p>
               </div>
-              <h3 className="font-semibold">PA Integration</h3>
-              <p className="text-sm text-muted-foreground">
-                Simultaneously stream to your PA system and individual devices.
-              </p>
-            </div>
+            ))}
           </div>
         </section>
       </main>
