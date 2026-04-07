@@ -6,12 +6,11 @@ export function LiveRoom() {
 
   // Simulate people joining
   useEffect(() => {
-    if (count < 142) {
-      const timer = setTimeout(() => {
-        setCount(prev => prev + Math.floor(Math.random() * 3) + 1);
-      }, Math.random() * 800 + 200);
-      return () => clearTimeout(timer);
-    }
+    if (count >= 142) return;
+    const timer = setTimeout(() => {
+      setCount(prev => prev + Math.floor(Math.random() * 3) + 1);
+    }, Math.random() * 800 + 200);
+    return () => clearTimeout(timer);
   }, [count]);
 
   return (
