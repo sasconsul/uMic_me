@@ -141,14 +141,56 @@ export function setupWebSocketServer(server: Server) {
     let currentAttendeeId: number | undefined;
     let sessionUserId: string | null = null;
 
+    // Buffer messages received before auth completes to avoid dropping join messages
+    // sent immediately in the browser's ws.onopen handler.
+    const messageQueue: Buffer[] = [];
+    let authDone = false;
+
+    // Register the message handler immediately so no messages are dropped.
+    // Messages that arrive before auth completes are queued and processed after.
+    ws.on("message", (raw: Buffer) => {
+      if (!authDone) {
+        messageQueue.push(raw);
+        return;
+      }
+      void handleMessage(raw);
+    });
+
+    ws.on("close", () => {
+      if (!currentRoom) return;
+      currentRoom.clients.delete(ws);
+      if (currentRole === "host") {
+        currentRoom.hostWs = undefined;
+      } else if (currentRole === "attendee" && currentAttendeeId !== undefined) {
+        sendToHost(currentRoom, { type: "attendee-left", attendeeId: currentAttendeeId });
+      } else if (currentRole === "pa-source") {
+        currentRoom.paSourceWs = undefined;
+        sendToHost(currentRoom, { type: "pa-source-disconnected" });
+      }
+      if (currentRoom.clients.size === 0) {
+        rooms.delete(currentRoom.eventId);
+      }
+      currentRoom = null;
+    });
+
+    // Perform auth (async — messages may arrive and queue while this is pending)
     try {
       const user = await getSessionUserFromReq(req);
       if (user) sessionUserId = user.id;
     } catch {
       // unauthenticated — attendee join only
     }
+    authDone = true;
 
-    ws.on("message", async (raw: Buffer) => {
+    // Drain buffered messages sequentially so join-host / join-attendee are processed
+    // in the order they were received, and subsequent messages see the correct state.
+    for (const raw of messageQueue) {
+      await handleMessage(raw);
+    }
+    messageQueue.length = 0;
+
+    // ─── Message handler ──────────────────────────────────────────────────────
+    async function handleMessage(raw: Buffer) {
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(raw.toString()) as Record<string, unknown>;
@@ -455,24 +497,7 @@ export function setupWebSocketServer(server: Server) {
           break;
         }
       }
-    });
-
-    ws.on("close", () => {
-      if (!currentRoom) return;
-      currentRoom.clients.delete(ws);
-      if (currentRole === "host") {
-        currentRoom.hostWs = undefined;
-      } else if (currentRole === "attendee" && currentAttendeeId !== undefined) {
-        sendToHost(currentRoom, { type: "attendee-left", attendeeId: currentAttendeeId });
-      } else if (currentRole === "pa-source") {
-        currentRoom.paSourceWs = undefined;
-        sendToHost(currentRoom, { type: "pa-source-disconnected" });
-      }
-      if (currentRoom.clients.size === 0) {
-        rooms.delete(currentRoom.eventId);
-      }
-      currentRoom = null;
-    });
+    }
   });
 
   return wss;
