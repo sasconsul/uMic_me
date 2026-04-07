@@ -6,6 +6,12 @@ uri = "file://artifacts/umic-deck/public/hero.png"
 type = "image"
 title = "live event hero"
 
+[[generated]]
+id = "ImLxt9-Fh-D5Q7FIRWQhh"
+uri = "file://artifacts/mockup-sandbox/public/images/dark-venue.png"
+type = "image"
+title = "Dark concert venue stage"
+
 [[outputs]]
 id = "HqInL8tRngGLtr8wRukgg"
 uri = "file://artifacts/umic-deck/COMIC_SCRIPT.md"
