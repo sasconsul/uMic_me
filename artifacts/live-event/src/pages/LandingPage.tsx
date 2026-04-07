@@ -2,6 +2,9 @@ import { useAuth } from "@clerk/react";
 import { useLocation } from "wouter";
 import { Mic, QrCode, Users, Radio } from "lucide-react";
 import { Link } from "wouter";
+import panel2 from "@assets/panel_2_scanning_1775592496171.png";
+import panel3 from "@assets/panel_3_listening_1775592496177.png";
+import panel4 from "@assets/panel_4_QyA_begins_1775592496178.png";
 
 export function LandingPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -73,7 +76,7 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl w-full" role="list" aria-label="Platform features">
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full" role="list" aria-label="Platform features">
           {[
             {
               icon: QrCode,
@@ -84,11 +87,6 @@ export function LandingPage() {
               icon: Radio,
               title: "Crystal-Clear Audio",
               desc: "Stream crystal-clear audio to every attendee device simultaneously.",
-            },
-            {
-              icon: Mic,
-              title: "PA Integration",
-              desc: "Simultaneously stream to your PA system and individual devices.",
             },
             {
               icon: Users,
@@ -109,6 +107,32 @@ export function LandingPage() {
             </div>
           ))}
         </div>
+
+        <div className="mt-16 max-w-5xl w-full">
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
+            <img src={panel2} alt="Scanning QR code" className="rounded-xl object-contain w-full md:w-1/3" />
+            <img src={panel3} alt="Listening in seats" className="rounded-xl object-contain w-full md:w-1/3" />
+            <img src={panel4} alt="Q&A begins" className="rounded-xl object-contain w-full md:w-1/3" />
+          </div>
+        </div>
+
+        <section className="mt-16 max-w-5xl w-full">
+          <h2 className="text-2xl font-bold mb-6 text-left">Host meeting preparation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              role="listitem"
+              className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
+            >
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
+                <Mic className="w-5 h-5 text-primary" />
+              </div>
+              <h3 className="font-semibold">PA Integration</h3>
+              <p className="text-sm text-muted-foreground">
+                Simultaneously stream to your PA system and individual devices.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
