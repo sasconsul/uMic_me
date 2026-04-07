@@ -61,7 +61,7 @@ export function LandingPage() {
             Stream audio to every seat in the room
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Host live events, broadcast audio via WebRTC to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.
+            Host live events, broadcast crystal-clear audio to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -82,8 +82,8 @@ export function LandingPage() {
             },
             {
               icon: Radio,
-              title: "WebRTC Audio",
-              desc: "Stream crystal-clear audio to every attendee device simultaneously via WebRTC.",
+              title: "Crystal-Clear Audio",
+              desc: "Stream crystal-clear audio to every attendee device simultaneously.",
             },
             {
               icon: Mic,
