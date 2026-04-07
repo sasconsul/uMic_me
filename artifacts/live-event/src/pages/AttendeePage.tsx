@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -38,6 +38,13 @@ export function AttendeePage() {
   const [eventPromoText, setEventPromoText] = useState<string | null>(null);
   const [eventStartTime, setEventStartTime] = useState<string | null>(null);
   const [assignedId, setAssignedId] = useState<number | null>(null);
+  const [qrToken, setQrToken] = useState<string>("");
+
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackName, setFeedbackName] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
@@ -52,7 +59,10 @@ export function AttendeePage() {
       if (data.eventStartTime !== undefined) setEventStartTime(data.eventStartTime ?? null);
       if (data.assignedId !== undefined) setAssignedId(data.assignedId);
     }
-  }, [attendeeId]);
+    if (token) setQrToken(token);
+    const alreadySubmitted = sessionStorage.getItem(`feedback-submitted-${attendeeId}`) === "true";
+    if (alreadySubmitted) setFeedbackSubmitted(true);
+  }, [attendeeId, token]);
 
   const patchAttendee = useCallback(
     async (update: { raisedHand?: boolean }) => {

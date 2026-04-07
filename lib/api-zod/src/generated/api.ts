@@ -280,3 +280,38 @@ export const GetHostStatsResponse = zod.object({
   liveEvents: zod.number(),
   totalAttendees: zod.number(),
 });
+
+/**
+ * @summary Submit anonymous feedback for an event (public, no auth)
+ */
+export const SubmitFeedbackParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const SubmitFeedbackBody = zod.object({
+  message: zod.string().min(1).max(500),
+  rating: zod.number().int().min(1).max(5).optional(),
+  displayName: zod.string().max(80).optional(),
+  hp: zod.string().optional(),
+});
+
+/**
+ * @summary List feedback for an event (host only)
+ */
+export const ListFeedbackParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const FeedbackItemSchema = zod.object({
+  id: zod.number(),
+  eventId: zod.number(),
+  attendeeId: zod.number().nullable(),
+  displayName: zod.string().nullable(),
+  message: zod.string(),
+  rating: zod.number().nullable(),
+  createdAt: zod.coerce.date(),
+});
+
+export const ListFeedbackResponse = zod.object({
+  items: zod.array(FeedbackItemSchema),
+});
