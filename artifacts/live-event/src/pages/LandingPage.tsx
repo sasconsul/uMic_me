@@ -76,45 +76,48 @@ export function LandingPage() {
           </div>
         </div>
 
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full" role="list" aria-label="Platform features">
-          {[
-            {
-              icon: QrCode,
-              title: "QR Code Join",
-              desc: "Attendees scan a QR code to instantly join your event on their device.",
-            },
-            {
-              icon: Radio,
-              title: "Crystal-Clear Audio",
-              desc: "Stream crystal-clear audio to every attendee device simultaneously.",
-            },
-            {
-              icon: Users,
-              title: "Q&A Queue",
-              desc: "Manage attendee questions with a real-time hand-raise queue.",
-            },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div
-              key={title}
-              role="listitem"
-              className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
-            >
-              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
-                <Icon className="w-5 h-5 text-primary" />
+        <section className="mt-24 max-w-5xl w-full">
+          <h2 className="text-2xl font-bold mb-6 text-left">For the Audience</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list" aria-label="Platform features">
+            {[
+              {
+                icon: QrCode,
+                title: "QR Code Join",
+                desc: "Attendees scan a QR code to instantly join your event on their device.",
+              },
+              {
+                icon: Radio,
+                title: "Crystal-Clear Audio",
+                desc: "Stream crystal-clear audio to every attendee device simultaneously.",
+              },
+              {
+                icon: Users,
+                title: "Q&A Queue",
+                desc: "Manage attendee questions with a real-time hand-raise queue.",
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                role="listitem"
+                className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
+              >
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <h3 className="font-semibold">{title}</h3>
+                <p className="text-sm text-muted-foreground">{desc}</p>
               </div>
-              <h3 className="font-semibold">{title}</h3>
-              <p className="text-sm text-muted-foreground">{desc}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-16 max-w-5xl w-full">
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
-            <img src={panel2} alt="Scanning QR code" className="rounded-xl object-contain w-full md:w-1/3" />
-            <img src={panel3} alt="Listening in seats" className="rounded-xl object-contain w-full md:w-1/3" />
-            <img src={panel4} alt="Q&A begins" className="rounded-xl object-contain w-full md:w-1/3" />
+            ))}
           </div>
-        </div>
+
+          <div className="mt-16">
+            <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
+              <img src={panel2} alt="Scanning QR code" className="rounded-xl object-contain w-full md:w-1/3" />
+              <img src={panel3} alt="Listening in seats" className="rounded-xl object-contain w-full md:w-1/3" />
+              <img src={panel4} alt="Q&A begins" className="rounded-xl object-contain w-full md:w-1/3" />
+            </div>
+          </div>
+        </section>
 
         <section className="mt-16 max-w-5xl w-full">
           <h2 className="text-2xl font-bold mb-6 text-left">Host meeting preparation</h2>
