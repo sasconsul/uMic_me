@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. This is a full-stack real-time live event management platform. Hosts log in via Replit Auth, create events with QR codes, stream audio via WebRTC to all attendee devices and a PA system, and run Q&A sessions with a hand-raise queue.
+pnpm workspace monorepo using TypeScript. This is a full-stack real-time live event management platform. Hosts log in via Clerk auth (Google, email, GitHub), create events with QR codes, stream audio via WebRTC to all attendee devices and a PA system, and run Q&A sessions with a hand-raise queue.
 
 ## Stack
 
@@ -16,7 +16,7 @@ pnpm workspace monorepo using TypeScript. This is a full-stack real-time live ev
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 - **Frontend**: React + Vite + Tailwind CSS + shadcn/ui
-- **Auth**: Replit OIDC (openid-client)
+- **Auth**: Clerk (`@clerk/express` server, `@clerk/react` client)
 - **Real-time**: WebSocket (`ws` library) + WebRTC for audio
 - **QR Codes**: `qrcode` npm package
 
@@ -33,7 +33,6 @@ artifacts-monorepo/
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   ├── db/                 # Drizzle ORM schema + DB connection
-│   ├── replit-auth-web/    # useAuth() hook for frontend
 │   └── object-storage-web/ # ObjectUploader component + useUpload hook
 ├── scripts/                # Utility scripts
 ├── pnpm-workspace.yaml
@@ -45,10 +44,12 @@ artifacts-monorepo/
 ## Key Architecture Decisions
 
 ### Authentication
-- Replit OIDC via `openid-client` on the server
-- Session stored in PostgreSQL (`sessions` table)
-- `authMiddleware.ts` populates `req.user` and `req.isAuthenticated()`
-- Frontend uses `useAuth()` from `@workspace/replit-auth-web`
+- Clerk via `@clerk/express` on the server (`clerkMiddleware()` in `app.ts`)
+- Clerk proxy middleware at `/api/__clerk` for production cookie-based auth
+- `requireAuth` middleware in `events.ts` extracts `req.userId` via `getAuth(req)`
+- WebSocket host auth uses `createClerkClient().authenticateRequest()` on upgrade request
+- Frontend uses `@clerk/react`: `useAuth()`, `useUser()`, `useClerk()`
+- Sign-in/up pages at `/sign-in` and `/sign-up` with Clerk's embedded `<SignIn>`/`<SignUp>` components
 
 ### Real-time Communication
 - WebSocket server at `/ws` path using `ws` package
@@ -88,16 +89,14 @@ Express 5 + WebSocket API server. Routes in `src/routes/`. WebSocket server in `
 ### `artifacts/live-event` (`@workspace/live-event`)
 React + Vite frontend. 
 - `pnpm --filter @workspace/live-event run dev` — dev server on port 18558
-- Hooks: `useAuth`, `useWebSocket`, `useAudioBroadcast`, `useAudioReceive`
+- Hooks: `useWebSocket`, `useAudioBroadcast`, `useAudioReceive`
+- Auth via `@clerk/react`: `useAuth()`, `useUser()`, `useClerk()`
 
 ### `lib/db` (`@workspace/db`)
 - `pnpm --filter @workspace/db run push` — push schema to DB
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate hooks and Zod schemas
-
-### `lib/replit-auth-web` (`@workspace/replit-auth-web`)
-- `useAuth()` hook — provides `user`, `isAuthenticated`, `isLoading`, `login()`, `logout()`
 
 ### `lib/object-storage-web` (`@workspace/object-storage-web`)
 - `ObjectUploader` component + `useUpload()` hook for file uploads via presigned URLs

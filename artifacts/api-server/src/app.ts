@@ -1,11 +1,11 @@
 import path from "path";
 import express, { type Express } from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import { clerkMiddleware } from "@clerk/express";
+import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { authMiddleware } from "./middlewares/authMiddleware";
 
 const app: Express = express();
 
@@ -28,11 +28,14 @@ app.use(
     },
   }),
 );
+
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+
 app.use(cors({ credentials: true, origin: true }));
-app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(authMiddleware);
+
+app.use(clerkMiddleware());
 
 app.use("/api", router);
 

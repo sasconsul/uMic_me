@@ -1,4 +1,5 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { getAuth } from "@clerk/express";
 import { db, eventsTable, attendeesTable } from "@workspace/db";
 import { eq, and, count, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -17,6 +18,17 @@ import { generatePaSourceToken } from "../lib/websocket";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+function requireAuth(req: Request & { userId?: string }, res: Response, next: NextFunction) {
+  const auth = getAuth(req);
+  const userId = auth?.sessionClaims?.userId || auth?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  req.userId = userId;
+  next();
+}
 
 async function trySetLogoAcl(logoUrl: string | null | undefined, userId: string): Promise<void> {
   if (!logoUrl) return;
@@ -53,24 +65,16 @@ router.get("/public/events/:id", async (req: Request, res: Response) => {
   res.json({ event });
 });
 
-router.get("/events", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/events", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const events = await db
     .select()
     .from(eventsTable)
-    .where(eq(eventsTable.hostUserId, req.user.id))
+    .where(eq(eventsTable.hostUserId, req.userId!))
     .orderBy(sql`${eventsTable.createdAt} DESC`);
   res.json({ events });
 });
 
-router.post("/events", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/events", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const parsed = CreateEventBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -78,11 +82,11 @@ router.post("/events", async (req: Request, res: Response) => {
   }
   const { title, logoUrl, promoText, startTime, flyerTagline, flyerOptions } = parsed.data;
   const qrCodeToken = generateToken();
-  await trySetLogoAcl(logoUrl, req.user.id);
+  await trySetLogoAcl(logoUrl, req.userId!);
   const [event] = await db
     .insert(eventsTable)
     .values({
-      hostUserId: req.user.id,
+      hostUserId: req.userId!,
       title,
       logoUrl: logoUrl ?? null,
       promoText: promoText ?? null,
@@ -95,11 +99,7 @@ router.post("/events", async (req: Request, res: Response) => {
   res.status(201).json({ event });
 });
 
-router.get("/events/:id", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/events/:id", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = GetEventParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -113,19 +113,15 @@ router.get("/events/:id", async (req: Request, res: Response) => {
     res.status(404).json({ error: "Event not found" });
     return;
   }
-  if (event.hostUserId !== req.user.id) {
+  if (event.hostUserId !== req.userId!) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  trySetLogoAcl(event.logoUrl, req.user.id);
+  trySetLogoAcl(event.logoUrl, req.userId!);
   res.json({ event });
 });
 
-router.patch("/events/:id", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.patch("/events/:id", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = UpdateEventParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -139,13 +135,13 @@ router.patch("/events/:id", async (req: Request, res: Response) => {
   const [existing] = await db
     .select()
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
   if (!existing) {
     res.status(404).json({ error: "Event not found" });
     return;
   }
   const { title, logoUrl, promoText, startTime, status, flyerTagline, flyerOptions } = parsed.data;
-  if (logoUrl !== undefined) await trySetLogoAcl(logoUrl, req.user.id);
+  if (logoUrl !== undefined) await trySetLogoAcl(logoUrl, req.userId!);
   const updateData: Partial<typeof eventsTable.$inferInsert> = {};
   if (title !== undefined) updateData.title = title;
   if (logoUrl !== undefined) updateData.logoUrl = logoUrl;
@@ -163,11 +159,7 @@ router.patch("/events/:id", async (req: Request, res: Response) => {
   res.json({ event });
 });
 
-router.delete("/events/:id", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/events/:id", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = DeleteEventParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -176,7 +168,7 @@ router.delete("/events/:id", async (req: Request, res: Response) => {
   const [existing] = await db
     .select()
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
   if (!existing) {
     res.status(404).json({ error: "Event not found" });
     return;
@@ -185,11 +177,7 @@ router.delete("/events/:id", async (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-router.get("/events/:id/attendees", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/events/:id/attendees", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = ListAttendeesParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -198,7 +186,7 @@ router.get("/events/:id/attendees", async (req: Request, res: Response) => {
   const [event] = await db
     .select()
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
@@ -211,11 +199,7 @@ router.get("/events/:id/attendees", async (req: Request, res: Response) => {
   res.json({ attendees });
 });
 
-router.get("/events/:id/qr", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/events/:id/qr", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = GetEventQrParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -224,7 +208,7 @@ router.get("/events/:id/qr", async (req: Request, res: Response) => {
   const [event] = await db
     .select()
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
@@ -239,11 +223,7 @@ router.get("/events/:id/qr", async (req: Request, res: Response) => {
   res.send(pngBuffer);
 });
 
-router.get("/events/:id/stats", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/events/:id/stats", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const params = GetEventStatsParams.safeParse({ id: Number(req.params.id) });
   if (!params.success) {
     res.status(400).json({ error: "Invalid event id" });
@@ -252,7 +232,7 @@ router.get("/events/:id/stats", async (req: Request, res: Response) => {
   const [event] = await db
     .select()
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
@@ -273,11 +253,7 @@ router.get("/events/:id/stats", async (req: Request, res: Response) => {
   });
 });
 
-router.post("/events/:id/pa-token", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.post("/events/:id/pa-token", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const eventId = Number(req.params.id);
   if (!eventId) {
     res.status(400).json({ error: "Invalid event id" });
@@ -286,7 +262,7 @@ router.post("/events/:id/pa-token", async (req: Request, res: Response) => {
   const [event] = await db
     .select({ id: eventsTable.id, hostUserId: eventsTable.hostUserId })
     .from(eventsTable)
-    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.user.id)));
+    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.userId!)));
   if (!event) {
     res.status(404).json({ error: "Event not found" });
     return;
@@ -295,15 +271,11 @@ router.post("/events/:id/pa-token", async (req: Request, res: Response) => {
   res.json({ token });
 });
 
-router.get("/host/stats", async (req: Request, res: Response) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/host/stats", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
   const hostEvents = await db
     .select({ id: eventsTable.id, status: eventsTable.status })
     .from(eventsTable)
-    .where(eq(eventsTable.hostUserId, req.user.id));
+    .where(eq(eventsTable.hostUserId, req.userId!));
 
   const totalEvents = hostEvents.length;
   const liveEvents = hostEvents.filter((e) => e.status === "live").length;

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { useUser, useClerk } from "@clerk/react";
 import { useListEvents, useCreateEvent, useDeleteEvent } from "@workspace/api-client-react";
 import { useUpload } from "@workspace/object-storage-web";
 import { toast } from "sonner";
@@ -28,7 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 
 export function HostDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
   const [, navigate] = useLocation();
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -122,9 +123,9 @@ export function HostDashboard() {
           <span className="font-bold text-lg">uMic.me</span>
         </div>
         <div className="flex items-center gap-4">
-          {user?.profileImageUrl && (
+          {user?.imageUrl && (
             <img
-              src={user.profileImageUrl}
+              src={user.imageUrl}
               alt={user.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "User profile photo"}
               className="w-8 h-8 rounded-full"
             />
@@ -133,7 +134,7 @@ export function HostDashboard() {
             {user?.firstName} {user?.lastName}
           </span>
           <button
-            onClick={logout}
+            onClick={() => signOut()}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />

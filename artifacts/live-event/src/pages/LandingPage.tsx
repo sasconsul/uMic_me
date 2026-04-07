@@ -1,17 +1,17 @@
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@clerk/react";
 import { useLocation } from "wouter";
 import { Mic, QrCode, Users, Radio } from "lucide-react";
 import { Link } from "wouter";
 
 export function LandingPage() {
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [, navigate] = useLocation();
 
   const handleHostAction = () => {
-    if (isAuthenticated) {
+    if (isSignedIn) {
       navigate("/dashboard");
     } else {
-      login();
+      navigate("/sign-in");
     }
   };
 
@@ -32,7 +32,7 @@ export function LandingPage() {
             >
               Demos
             </Link>
-            {isLoading ? null : isAuthenticated ? (
+            {isSignedIn ? (
               <button
                 onClick={() => navigate("/dashboard")}
                 className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -41,7 +41,7 @@ export function LandingPage() {
               </button>
             ) : (
               <button
-                onClick={login}
+                onClick={() => navigate("/sign-in")}
                 className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Sign in
@@ -68,7 +68,7 @@ export function LandingPage() {
               onClick={handleHostAction}
               className="bg-primary text-primary-foreground px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              {isAuthenticated ? "Go to Dashboard" : "Host an Event"}
+              {isSignedIn ? "Go to Dashboard" : "Host an Event"}
             </button>
           </div>
         </div>

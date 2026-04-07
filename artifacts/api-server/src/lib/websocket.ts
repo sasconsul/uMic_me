@@ -3,7 +3,7 @@ import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
-import { getSession } from "./auth";
+import { createClerkClient } from "@clerk/express";
 import { db, eventsTable, attendeesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
@@ -108,24 +108,26 @@ function getAttendeeList(room: Room) {
 }
 
 async function getSessionUserFromReq(req: IncomingMessage): Promise<{ id: string } | null> {
-  const cookieHeader = req.headers.cookie ?? "";
-  const cookieMap: Record<string, string> = {};
-  cookieHeader.split(";").forEach((part) => {
-    const [key, ...rest] = part.trim().split("=");
-    if (key) cookieMap[key.trim()] = decodeURIComponent(rest.join("="));
-  });
-
-  const authHeader = req.headers["authorization"];
-  let sid: string | undefined;
-  if (authHeader?.startsWith("Bearer ")) {
-    sid = authHeader.slice(7);
-  } else {
-    sid = cookieMap["sid"];
+  try {
+    const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const headers = new Headers();
+    for (const [key, val] of Object.entries(req.headers)) {
+      if (val != null) headers.set(key, Array.isArray(val) ? val.join(",") : val);
+    }
+    const request = new Request(url.toString(), { headers });
+    const result = await clerkClient.authenticateRequest(request, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+    if (result.isSignedIn) {
+      const auth = result.toAuth();
+      const userId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
+      return userId ? { id: userId } : null;
+    }
+  } catch {
+    // unauthenticated
   }
-
-  if (!sid) return null;
-  const session = await getSession(sid);
-  return session?.user ?? null;
+  return null;
 }
 
 export function setupWebSocketServer(server: Server) {
