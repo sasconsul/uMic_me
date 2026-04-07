@@ -21,6 +21,7 @@ import type {
   AttendeeResponse,
   CreateEventBody,
   DeleteSuccess,
+  DuplicateEventBody,
   ErrorEnvelope,
   EventListResponse,
   EventResponse,
@@ -798,6 +799,93 @@ export const useDeleteEvent = <
   TContext
 > => {
   return useMutation(getDeleteEventMutationOptions(options));
+};
+
+/**
+ * @summary Duplicate an event for a future date
+ */
+export const getDuplicateEventUrl = (id: number) => {
+  return `/api/events/${id}/duplicate`;
+};
+
+export const duplicateEvent = async (
+  id: number,
+  duplicateEventBody: DuplicateEventBody,
+  options?: RequestInit,
+): Promise<EventResponse> => {
+  return customFetch<EventResponse>(getDuplicateEventUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(duplicateEventBody),
+  });
+};
+
+export const getDuplicateEventMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof duplicateEvent>>,
+    TError,
+    { id: number; data: BodyType<DuplicateEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof duplicateEvent>>,
+  TError,
+  { id: number; data: BodyType<DuplicateEventBody> },
+  TContext
+> => {
+  const mutationKey = ["duplicateEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof duplicateEvent>>,
+    { id: number; data: BodyType<DuplicateEventBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return duplicateEvent(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DuplicateEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof duplicateEvent>>
+>;
+export type DuplicateEventMutationBody = BodyType<DuplicateEventBody>;
+export type DuplicateEventMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Duplicate an event for a future date
+ */
+export const useDuplicateEvent = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof duplicateEvent>>,
+    TError,
+    { id: number; data: BodyType<DuplicateEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof duplicateEvent>>,
+  TError,
+  { id: number; data: BodyType<DuplicateEventBody> },
+  TContext
+> => {
+  return useMutation(getDuplicateEventMutationOptions(options));
 };
 
 /**

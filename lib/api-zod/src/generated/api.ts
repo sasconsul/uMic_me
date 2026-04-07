@@ -155,6 +155,18 @@ export const UpdateEventResponse = zod.object({
 });
 
 /**
+ * @summary Duplicate an event for a future date
+ */
+export const DuplicateEventParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DuplicateEventBody = zod.object({
+  title: zod.string().min(1),
+  startTime: zod.coerce.date().nullish(),
+});
+
+/**
  * @summary Delete an event
  */
 export const DeleteEventParams = zod.object({

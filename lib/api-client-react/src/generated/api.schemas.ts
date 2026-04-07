@@ -85,6 +85,13 @@ export interface CreateEventBody {
   flyerOptions?: FlyerOptions | null;
 }
 
+export interface DuplicateEventBody {
+  /** @minLength 1 */
+  title: string;
+  /** @nullable */
+  startTime?: string | null;
+}
+
 export type UpdateEventBodyStatus =
   (typeof UpdateEventBodyStatus)[keyof typeof UpdateEventBodyStatus];
 

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
-import { useListEvents, useCreateEvent, useDeleteEvent } from "@workspace/api-client-react";
+import { useListEvents, useCreateEvent, useDeleteEvent, useDuplicateEvent } from "@workspace/api-client-react";
 import { useUpload } from "@workspace/object-storage-web";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,7 @@ import {
   LogOut,
   ImagePlus,
   X,
+  Copy,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,6 +39,11 @@ export function HostDashboard() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicatingEventId, setDuplicatingEventId] = useState<number | null>(null);
+  const [duplicateTitle, setDuplicateTitle] = useState("");
+  const [duplicateStartTime, setDuplicateStartTime] = useState("");
 
   const { uploadFile, isUploading } = useUpload({
     onSuccess: (res) => {
@@ -72,6 +78,32 @@ export function HostDashboard() {
       onError: () => toast.error("Failed to delete event"),
     },
   });
+
+  const duplicateEventMutation = useDuplicateEvent({
+    mutation: {
+      onSuccess: () => {
+        toast.success("Event duplicated!");
+        refetch();
+        setDuplicateOpen(false);
+        setDuplicatingEventId(null);
+        setDuplicateTitle("");
+        setDuplicateStartTime("");
+      },
+      onError: () => toast.error("Failed to duplicate event"),
+    },
+  });
+
+  function handleDuplicate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!duplicatingEventId || !duplicateTitle.trim()) return;
+    duplicateEventMutation.mutate({
+      id: duplicatingEventId,
+      data: {
+        title: duplicateTitle,
+        startTime: duplicateStartTime || undefined,
+      },
+    });
+  }
 
   function resetForm() {
     setTitle("");
@@ -142,6 +174,58 @@ export function HostDashboard() {
           </button>
         </div>
       </header>
+
+      <Dialog open={duplicateOpen} onOpenChange={(open) => {
+        setDuplicateOpen(open);
+        if (!open) {
+          setDuplicatingEventId(null);
+          setDuplicateTitle("");
+          setDuplicateStartTime("");
+        }
+      }}>
+        <DialogContent aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>Duplicate Event</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleDuplicate} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="dup-title">Event Title <span aria-hidden="true">*</span><span className="sr-only">(required)</span></Label>
+              <Input
+                id="dup-title"
+                value={duplicateTitle}
+                onChange={(e) => setDuplicateTitle(e.target.value)}
+                required
+                aria-required="true"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dup-startTime">Start Time <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="dup-startTime"
+                type="datetime-local"
+                value={duplicateStartTime}
+                onChange={(e) => setDuplicateStartTime(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDuplicateOpen(false)}
+                className="flex-1 border border-border rounded-lg py-2 text-sm hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={duplicateEventMutation.isPending || !duplicateTitle.trim()}
+                className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                {duplicateEventMutation.isPending ? "Duplicating..." : "Duplicate"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <main id="main-content" className="max-w-5xl mx-auto px-6 py-8 space-y-8">
         <div className="flex items-center justify-between">
@@ -308,6 +392,19 @@ export function HostDashboard() {
                     {event.status === "live" ? "Live now" : "Not started"}
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      aria-label={`Duplicate ${event.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDuplicatingEventId(event.id);
+                        setDuplicateTitle(`${event.title} (Copy)`);
+                        setDuplicateStartTime("");
+                        setDuplicateOpen(true);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
                     <button
                       aria-label={`Delete ${event.title}`}
                       onClick={(e) => {

@@ -9,6 +9,8 @@ import {
   GetEventParams,
   UpdateEventParams,
   DeleteEventParams,
+  DuplicateEventParams,
+  DuplicateEventBody,
   ListAttendeesParams,
   GetEventQrParams,
   GetEventStatsParams,
@@ -157,6 +159,44 @@ router.patch("/events/:id", requireAuth, async (req: Request & { userId?: string
     .where(eq(eventsTable.id, params.data.id))
     .returning();
   res.json({ event });
+});
+
+router.post("/events/:id/duplicate", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const params = DuplicateEventParams.safeParse({ id: Number(req.params.id) });
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid event id" });
+    return;
+  }
+  const parsed = DuplicateEventBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+  const [source] = await db
+    .select()
+    .from(eventsTable)
+    .where(and(eq(eventsTable.id, params.data.id), eq(eventsTable.hostUserId, req.userId!)));
+  if (!source) {
+    res.status(404).json({ error: "Event not found" });
+    return;
+  }
+  const qrCodeToken = generateToken();
+  await trySetLogoAcl(source.logoUrl, req.userId!);
+  const [event] = await db
+    .insert(eventsTable)
+    .values({
+      hostUserId: req.userId!,
+      title: parsed.data.title,
+      logoUrl: source.logoUrl ?? null,
+      promoText: source.promoText ?? null,
+      startTime: parsed.data.startTime ? new Date(parsed.data.startTime) : null,
+      flyerTagline: source.flyerTagline ?? null,
+      qrCodeToken,
+      flyerOptions: source.flyerOptions ?? null,
+      status: "pending",
+    })
+    .returning();
+  res.status(201).json({ event });
 });
 
 router.delete("/events/:id", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
