@@ -25,6 +25,8 @@ import {
   Save,
   X,
   ImagePlus,
+  MessageSquare,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -53,6 +55,43 @@ export function EventPage({ eventId }: EventPageProps) {
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
+
+  interface FeedbackItem {
+    id: number;
+    eventId: number;
+    attendeeId: number | null;
+    displayName: string | null;
+    message: string;
+    rating: number | null;
+    createdAt: string;
+  }
+
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    setFeedbackLoading(true);
+    setFeedbackError(null);
+    fetch(`/api/events/${eventId}/feedback`)
+      .then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 401) return;
+          throw new Error("Failed to load feedback");
+        }
+        const data = (await res.json()) as { items: FeedbackItem[] };
+        if (!cancelled) setFeedbackItems(data.items);
+      })
+      .catch(() => {
+        if (!cancelled) setFeedbackError("Failed to load feedback");
+      })
+      .finally(() => {
+        if (!cancelled) setFeedbackLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [eventId]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -675,6 +714,60 @@ export function EventPage({ eventId }: EventPageProps) {
                     {a.raisedHand && (
                       <Hand className="w-4 h-4 text-yellow-500 shrink-0" aria-label="Hand raised" />
                     )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" aria-hidden="true" />
+              Feedback
+              {feedbackItems.length > 0 && (
+                <span className="ml-auto text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  {feedbackItems.length}
+                </span>
+              )}
+            </h2>
+            {feedbackLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-2">Loading feedback...</p>
+            ) : feedbackError ? (
+              <p className="text-sm text-destructive text-center py-2">{feedbackError}</p>
+            ) : feedbackItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No feedback yet. Attendees can submit feedback after the event ends.
+              </p>
+            ) : (
+              <ul className="space-y-3 max-h-80 overflow-y-auto" aria-label="Attendee feedback">
+                {feedbackItems.map((item) => (
+                  <li key={item.id} className="bg-muted/40 rounded-xl px-4 py-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium truncate">
+                        {item.displayName ?? "Anonymous"}
+                      </span>
+                      {item.rating !== null && (
+                        <span className="flex items-center gap-0.5 shrink-0" aria-label={`${item.rating} out of 5 stars`}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${s <= item.rating! ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`}
+                              aria-hidden="true"
+                            />
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{item.message}</p>
+                    <time
+                      dateTime={item.createdAt}
+                      className="text-xs text-muted-foreground/60"
+                    >
+                      {new Date(item.createdAt).toLocaleString(undefined, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </time>
                   </li>
                 ))}
               </ul>

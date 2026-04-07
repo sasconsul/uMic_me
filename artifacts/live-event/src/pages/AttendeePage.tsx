@@ -204,15 +204,141 @@ export function AttendeePage() {
     await patchAttendee({ raisedHand: newValue });
   };
 
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackMessage.trim() || !qrToken) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch(`/api/events/feedback/${qrToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: feedbackMessage.trim(),
+          rating: feedbackRating > 0 ? feedbackRating : undefined,
+          displayName: feedbackName.trim() || undefined,
+          hp: "",
+        }),
+      });
+      if (res.status === 429) {
+        toast.error("You've already submitted feedback for this event.");
+        setFeedbackSubmitted(true);
+        sessionStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
+        return;
+      }
+      if (!res.ok) {
+        toast.error("Failed to submit feedback. Please try again.");
+        return;
+      }
+      setFeedbackSubmitted(true);
+      sessionStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
+    } catch {
+      toast.error("Failed to submit feedback. Please try again.");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   if (eventClosed) {
+    if (feedbackSubmitted) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center px-4">
+          <main className="text-center space-y-4 max-w-sm w-full">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto" aria-hidden="true">
+              <CheckCircle className="w-8 h-8 text-primary" />
+            </div>
+            <h1 className="text-xl font-bold">Thank you!</h1>
+            <p className="text-muted-foreground text-sm">
+              Your feedback for <span className="font-medium text-foreground">{eventTitle}</span> has been submitted.
+            </p>
+          </main>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <main className="text-center space-y-4">
-          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto" aria-hidden="true">
-            <Radio className="w-8 h-8 text-muted-foreground" />
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
+        <main className="w-full max-w-sm space-y-5">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto" aria-hidden="true">
+              <Radio className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <h1 className="text-xl font-bold">Event has ended</h1>
+            <p className="text-muted-foreground text-sm">
+              Share your feedback for <span className="font-medium text-foreground">{eventTitle}</span>
+            </p>
           </div>
-          <h1 className="text-xl font-bold">Event has ended</h1>
-          <p className="text-muted-foreground text-sm">Thank you for attending {eventTitle}!</p>
+
+          <form onSubmit={handleFeedbackSubmit} className="space-y-4 bg-card border border-border rounded-2xl p-6">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Rating (optional)
+              </label>
+              <div className="flex items-center gap-1" role="group" aria-label="Star rating">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    aria-label={`${star} star${star !== 1 ? "s" : ""}`}
+                    aria-pressed={feedbackRating >= star}
+                    onClick={() => setFeedbackRating(feedbackRating === star ? 0 : star)}
+                    className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                  >
+                    <Star
+                      className={`w-7 h-7 transition-colors ${
+                        feedbackRating >= star
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-muted-foreground/40 hover:text-yellow-400/60"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="fb-message" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Message <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                id="fb-message"
+                value={feedbackMessage}
+                onChange={(e) => setFeedbackMessage(e.target.value)}
+                placeholder="Share your thoughts about the event..."
+                rows={4}
+                maxLength={500}
+                required
+                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none"
+              />
+              <p className="text-xs text-muted-foreground text-right">{feedbackMessage.length}/500</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="fb-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Name (optional)
+              </label>
+              <input
+                id="fb-name"
+                type="text"
+                value={feedbackName}
+                onChange={(e) => setFeedbackName(e.target.value)}
+                placeholder="Anonymous"
+                maxLength={80}
+                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
+              />
+            </div>
+
+            {/* Honeypot — hidden from real users */}
+            <input type="text" name="hp" tabIndex={-1} aria-hidden="true" className="hidden" autoComplete="off" />
+
+            <button
+              type="submit"
+              disabled={feedbackSubmitting || !feedbackMessage.trim()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              <Send className="w-4 h-4" aria-hidden="true" />
+              {feedbackSubmitting ? "Submitting..." : "Submit Feedback"}
+            </button>
+          </form>
         </main>
       </div>
     );

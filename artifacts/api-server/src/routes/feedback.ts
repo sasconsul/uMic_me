@@ -45,7 +45,7 @@ router.post("/events/feedback/:token", async (req: Request, res: Response) => {
   const { message, rating, displayName, hp } = parsed.data;
 
   if (hp && hp.trim().length > 0) {
-    res.status(201).json({ ok: true });
+    res.status(400).json({ error: "Invalid request" });
     return;
   }
 
