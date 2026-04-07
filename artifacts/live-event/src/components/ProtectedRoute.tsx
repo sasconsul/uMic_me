@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth } from "@clerk/react";
 import { useLocation } from "wouter";
 import type { ReactNode } from "react";
@@ -9,6 +10,12 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isSignedIn, isLoaded } = useAuth();
   const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      navigate("/sign-in");
+    }
+  }, [isLoaded, isSignedIn, navigate]);
 
   if (!isLoaded) {
     return (
@@ -22,7 +29,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isSignedIn) {
-    navigate("/sign-in");
     return null;
   }
 
