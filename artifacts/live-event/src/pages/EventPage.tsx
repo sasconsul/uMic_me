@@ -28,7 +28,7 @@ import {
   MessageSquare,
   Star,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface LiveAttendee {
   attendeeId: number;
@@ -761,12 +761,10 @@ export function EventPage({ eventId }: EventPageProps) {
                     <p className="text-sm text-muted-foreground leading-relaxed">{item.message}</p>
                     <time
                       dateTime={item.createdAt}
+                      title={new Date(item.createdAt).toLocaleString()}
                       className="text-xs text-muted-foreground/60"
                     >
-                      {new Date(item.createdAt).toLocaleString(undefined, {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
+                      {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
                     </time>
                   </li>
                 ))}

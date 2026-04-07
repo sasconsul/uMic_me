@@ -59,7 +59,11 @@ router.post("/events/feedback/:token", async (req: Request, res: Response) => {
     return;
   }
 
-  const rawIp = req.ip ?? req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+  const forwarded = req.headers["x-forwarded-for"];
+  const rawIp =
+    (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0]?.trim()) ??
+    req.ip ??
+    "unknown";
   const ipHash = hashIp(rawIp);
 
   const since = new Date(Date.now() - RATE_LIMIT_MINUTES * 60 * 1000);
