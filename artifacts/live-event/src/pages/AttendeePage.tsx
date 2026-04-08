@@ -26,6 +26,7 @@ export function AttendeePage() {
   const attendeeId = Number(attendeeIdStr);
 
   const [raisedHand, setRaisedHand] = useState(false);
+  const [questionText, setQuestionText] = useState("");
   const [eventClosed, setEventClosed] = useState(false);
   const [streamAvailable, setStreamAvailable] = useState(false);
   const [speakerSelected, setSpeakerSelected] = useState(false);
@@ -119,6 +120,7 @@ export function AttendeePage() {
         case "qa-closed":
           setQaOpen(false);
           setRaisedHand(false);
+          setQuestionText("");
           break;
         case "stream-available":
           setStreamAvailable(true);
@@ -200,7 +202,7 @@ export function AttendeePage() {
     if (!qaOpen && !raisedHand) return;
     const newValue = !raisedHand;
     setRaisedHand(newValue);
-    send({ type: "raise-hand", raised: newValue });
+    send({ type: "raise-hand", raised: newValue, questionText: newValue ? questionText.trim() : undefined });
     await patchAttendee({ raisedHand: newValue });
   };
 
@@ -442,6 +444,25 @@ export function AttendeePage() {
             <p className="text-xs text-muted-foreground">Make sure your device volume is turned up.</p>
           )}
         </div>
+
+        {qaOpen && (
+          <div className="space-y-1.5">
+            <label htmlFor="question-text" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-left">
+              Your question (optional)
+            </label>
+            <textarea
+              id="question-text"
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              disabled={raisedHand}
+              placeholder="Type your question before raising your hand…"
+              rows={3}
+              maxLength={500}
+              className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground text-right">{questionText.length}/500</p>
+          </div>
+        )}
 
         <button
           onClick={handleRaiseHand}

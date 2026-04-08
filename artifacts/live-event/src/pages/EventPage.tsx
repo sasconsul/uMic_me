@@ -36,6 +36,7 @@ interface LiveAttendee {
   raisedHand: boolean;
   raisedHandAt?: string | null;
   assignedId?: number;
+  questionText?: string;
 }
 
 interface EventPageProps {
@@ -210,13 +211,18 @@ export function EventPage({ eventId }: EventPageProps) {
           break;
         }
         case "hand-update": {
-          const { attendeeId, raisedHand, raisedHandAt } = msg as {
+          const { attendeeId, raisedHand, raisedHandAt, questionText } = msg as {
             attendeeId: number;
             raisedHand: boolean;
             raisedHandAt?: string | null;
+            questionText?: string;
           };
           setLiveAttendees((prev) =>
-            prev.map((a) => (a.attendeeId === attendeeId ? { ...a, raisedHand, raisedHandAt: raisedHandAt ?? null } : a)),
+            prev.map((a) =>
+              a.attendeeId === attendeeId
+                ? { ...a, raisedHand, raisedHandAt: raisedHandAt ?? null, questionText: raisedHand ? questionText : undefined }
+                : a,
+            ),
           );
           if (raisedHand) toast.info("✋ Attendee raised hand");
           break;
@@ -329,6 +335,12 @@ export function EventPage({ eventId }: EventPageProps) {
     send({ type: "select-speaker", attendeeId });
     setSelectedSpeaker({ attendeeId, micOpened: false });
     toast.success(muteUntilCalled ? "Attendee called on — click Open Mic when ready" : "Mic given to attendee");
+    const attendee = liveAttendees.find((a) => a.attendeeId === attendeeId);
+    if (attendee?.questionText && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(attendee.questionText);
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleOpenMic = () => {
@@ -600,15 +612,20 @@ export function EventPage({ eventId }: EventPageProps) {
                 <p className="text-xs text-muted-foreground font-medium">Hand Raise Queue — {raisedHands.length} waiting</p>
                 <ul aria-label="Hand raise queue">
                   {raisedHands.map((a, idx) => (
-                    <li key={a.attendeeId} className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3 mb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center" aria-hidden="true">{idx + 1}</span>
-                        <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}</span>
+                    <li key={a.attendeeId} className="flex items-start justify-between bg-muted/50 rounded-lg px-4 py-3 mb-2 gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <span className="w-6 h-6 bg-primary/10 text-primary text-xs font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">{idx + 1}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium">{a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}</span>
+                          {a.questionText && (
+                            <p className="text-xs text-muted-foreground mt-0.5 break-words">"{a.questionText}"</p>
+                          )}
+                        </div>
                       </div>
                       <button
                         aria-label={`${muteUntilCalled ? "Call on" : "Give mic to"} ${a.attendeeName ?? `Attendee #${a.assignedId ?? a.attendeeId}`}`}
                         onClick={() => handleSelectSpeaker(a.attendeeId)}
-                        className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shrink-0"
                       >
                         {muteUntilCalled ? "Call on" : "Give mic"}
                       </button>

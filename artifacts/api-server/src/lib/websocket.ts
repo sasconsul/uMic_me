@@ -16,6 +16,7 @@ interface RoomClient {
   hostUserId?: string;
   raisedHand?: boolean;
   raisedHandAt?: Date | null;
+  questionText?: string;
 }
 
 interface Room {
@@ -84,7 +85,7 @@ function sendToAttendee(room: Room, attendeeId: number, message: object) {
 }
 
 function getAttendeeList(room: Room) {
-  const attendees: Array<{ attendeeId: number; assignedId?: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null }> = [];
+  const attendees: Array<{ attendeeId: number; assignedId?: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null; questionText?: string }> = [];
   room.clients.forEach((client) => {
     if (client.role === "attendee" && client.attendeeId !== undefined) {
       attendees.push({
@@ -93,6 +94,7 @@ function getAttendeeList(room: Room) {
         attendeeName: client.attendeeName ?? null,
         raisedHand: client.raisedHand ?? false,
         raisedHandAt: client.raisedHandAt ? client.raisedHandAt.toISOString() : null,
+        questionText: client.questionText,
       });
     }
   });
@@ -315,12 +317,18 @@ export function setupWebSocketServer(server: Server) {
           if (client) {
             client.raisedHand = raised;
             client.raisedHandAt = raised ? new Date() : null;
+            if (raised && typeof msg.questionText === "string") {
+              client.questionText = msg.questionText.slice(0, 500);
+            } else if (!raised) {
+              client.questionText = undefined;
+            }
             sendToHost(currentRoom, {
               type: "hand-update",
               attendeeId: currentAttendeeId,
               attendeeName: client.attendeeName,
               raisedHand: raised,
               raisedHandAt: client.raisedHandAt ? client.raisedHandAt.toISOString() : null,
+              questionText: client.questionText,
             });
           }
           break;
