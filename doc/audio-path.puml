@@ -1,0 +1,112 @@
+@startuml audio-path
+title uMic.me — Audio Path Flow
+
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #555555
+  FontName Helvetica
+  FontSize 12
+}
+skinparam rectangle {
+  BackgroundColor #F5F5F5
+  BorderColor #888888
+  FontName Helvetica
+  FontSize 12
+  RoundCorner 8
+}
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #F9A825
+  FontName Helvetica
+}
+skinparam arrow {
+  Color #333333
+  FontName Helvetica
+  FontSize 11
+}
+skinparam TitleFontSize 16
+skinparam padding 6
+
+' ─── Participants ──────────────────────────────────────────────────────────────
+
+rectangle "Host Device" as HostDevice #FFE0B2 {
+  component [Microphone\n(getUserMedia)] as HostMic
+  component [RTCPeerConnection\nper attendee\n(downlink)] as DownPC
+  component [RTCPeerConnection\nto PA Source\n(pa-downlink)] as PaDownPC
+  component [RTCPeerConnection\nfrom speaker attendee\n(uplink receiver)] as UplinkPC
+}
+
+rectangle "WebSocket Server\n(api-server: /ws)" as WSServer #E3F2FD {
+  component [Room\n(in-memory)] as Room
+}
+
+rectangle "Attendee Device  ×N" as AttendeeDevice #E8F5E9 {
+  component [Speaker\n(audio output)] as AttendeeSpeaker
+}
+
+rectangle "Selected Speaker\n(Attendee Device  ×1)" as SpeakerDevice #FFF9C4 {
+  component [Microphone\n(getUserMedia)] as SpeakerMic
+  component [RTCPeerConnection\n(uplink sender)] as UplinkSender
+}
+
+rectangle "PA Source Device\n(separate browser tab)" as PaSource #FCE4EC {
+  component [Audio Output\n→ PA mixing desk] as PaOutput
+}
+
+' ─── Path 1 · Broadcast Downlink (Host → All Attendees) ───────────────────────
+
+HostMic -down-> DownPC : MediaStream\naudio track
+DownPC -[#1565C0,bold]-> AttendeeSpeaker : WebRTC P2P\naudio (one conn per attendee)
+
+note bottom of DownPC
+  Signaling via WebSocket:
+  rtc-offer-to-attendee →
+  ← rtc-answer-to-host
+  rtc-ice-to-attendee ↔
+  rtc-ice-to-host
+end note
+
+' ─── Path 2 · PA Broadcast (Host → PA Source → PA System) ────────────────────
+
+HostMic -down-> PaDownPC : same MediaStream\naudio track
+PaDownPC -[#AD1457,bold]-> PaOutput : WebRTC P2P\naudio
+
+note bottom of PaSource
+  Same host mic stream,
+  separate peer connection.
+  PA Source page plays audio
+  → physical PA system input.
+end note
+
+' ─── Path 3 · Q&A Speaker Uplink (Selected Attendee → Host) ──────────────────
+
+SpeakerMic -down-> UplinkSender : MediaStream\n(getUserMedia on demand)
+UplinkSender -[#2E7D32,bold]-> UplinkPC : WebRTC P2P\naudio uplink
+
+note bottom of UplinkSender
+  Signaling via WebSocket:
+  speaker-offer-to-host →
+  ← speaker-answer-to-attendee
+  speaker-ice-to-host ↔
+  speaker-ice-to-attendee
+  (track.enabled gated by
+   muteUntilCalled setting)
+end note
+
+' ─── WebSocket Control Plane (SDP/ICE relay) ──────────────────────────────────
+
+HostDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
+AttendeeDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
+SpeakerDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
+
+' ─── Legend ───────────────────────────────────────────────────────────────────
+
+legend right
+  |= Line |= Meaning |
+  |<#1565C0> blue bold | Broadcast downlink (host → attendees) |
+  |<#AD1457> pink bold | PA broadcast downlink (host → PA) |
+  |<#2E7D32> green bold | Q&A speaker uplink (attendee → host) |
+  |<#777777,dashed> grey dashed | WebSocket signaling (control plane) |
+endlegend
+
+@enduml
