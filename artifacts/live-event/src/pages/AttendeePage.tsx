@@ -445,25 +445,6 @@ export function AttendeePage() {
           )}
         </div>
 
-        {qaOpen && (
-          <div className="space-y-1.5">
-            <label htmlFor="question-text" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-left">
-              Your question (optional)
-            </label>
-            <textarea
-              id="question-text"
-              value={questionText}
-              onChange={(e) => setQuestionText(e.target.value)}
-              disabled={raisedHand}
-              placeholder="Type your question before raising your hand…"
-              rows={3}
-              maxLength={500}
-              className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            <p className="text-xs text-muted-foreground text-right">{questionText.length}/500</p>
-          </div>
-        )}
-
         <button
           onClick={handleRaiseHand}
           disabled={!qaOpen && !raisedHand}
@@ -488,6 +469,25 @@ export function AttendeePage() {
             )}
           </div>
         </button>
+
+        {qaOpen && (
+          <div className="space-y-1.5">
+            <label htmlFor="question-text" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide text-left">
+              Your question (optional)
+            </label>
+            <textarea
+              id="question-text"
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              disabled={raisedHand}
+              placeholder="Type your question before raising your hand…"
+              rows={3}
+              maxLength={500}
+              className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground text-right">{questionText.length}/500</p>
+          </div>
+        )}
 
         <p className="text-xs text-muted-foreground" aria-label={`Attendee number ${assignedId ?? attendeeId}`}>
           Attendee #{assignedId ?? attendeeId}

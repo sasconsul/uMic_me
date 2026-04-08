@@ -318,7 +318,10 @@ export function setupWebSocketServer(server: Server) {
             client.raisedHand = raised;
             client.raisedHandAt = raised ? new Date() : null;
             if (raised && typeof msg.questionText === "string") {
-              client.questionText = msg.questionText.slice(0, 500);
+              client.questionText = msg.questionText
+                .trim()
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+                .slice(0, 500) || undefined;
             } else if (!raised) {
               client.questionText = undefined;
             }
