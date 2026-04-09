@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
 import { Radio, ArrowLeft, ExternalLink, QrCode, Mic, HandMetal } from "lucide-react";
 
-const DECK_URL = "https://u-micme.replit.app/umic-deck/";
+const DECK_URL = `${window.location.origin}/umic-deck/`;
 
 export function DemosPage() {
   const [, navigate] = useLocation();

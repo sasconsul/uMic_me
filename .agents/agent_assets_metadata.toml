@@ -35,3 +35,9 @@ id = "wNju2pY_WHHkHMUhdHRwT"
 uri = "file://doc/flows.md"
 type = "text"
 title = "Screen Flows & WebSocket Reference"
+
+[[outputs]]
+id = "iE1WZF7_Dq_9k16N19be9"
+uri = "file://.local/outputs/uMic-me.pdf"
+type = "pdf"
+title = "uMic.me.pdf"
