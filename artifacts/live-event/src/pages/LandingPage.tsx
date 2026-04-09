@@ -27,7 +27,6 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -41,9 +40,7 @@ export function LandingPage() {
             <Link
               href="/demos"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
-            >
-              Demos
-            </Link>
+            >Experience uMic.me</Link>
             {isSignedIn ? (
               <button
                 onClick={() => navigate("/dashboard")}
@@ -62,7 +59,6 @@ export function LandingPage() {
           </nav>
         </div>
       </header>
-
       <main id="main-content" className="flex-1">
 
         {/* ── Hero ── */}
@@ -192,7 +188,6 @@ export function LandingPage() {
           </div>
         </section>
       </main>
-
       {/* ── Footer ── */}
       <footer className="border-t py-10 bg-muted/30">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-muted-foreground">
