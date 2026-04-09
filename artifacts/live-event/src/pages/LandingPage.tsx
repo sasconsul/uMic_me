@@ -65,9 +65,8 @@ export function LandingPage() {
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             Stream audio to every seat in the room
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Host live events, broadcast crystal-clear audio to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.
-
-          Sign in now to host your live event:</p>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Host live events, broadcast crystal-clear audio to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.</p>
+          <p className="text-xl font-bold italic max-w-2xl mx-auto">Sign in now to host your live event:</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={handleHostAction}
