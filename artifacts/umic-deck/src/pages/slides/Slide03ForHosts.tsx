@@ -2,7 +2,7 @@ export default function Slide03ForHosts() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ background: "#07070F" }}
+      style={{ background: "#1a1d2a" }}
     >
       <div
         className="absolute"

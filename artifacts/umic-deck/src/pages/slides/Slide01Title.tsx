@@ -8,7 +8,7 @@ export default function Slide01Title() {
         height: "100%",
         overflow: "hidden",
         position: "relative",
-        backgroundColor: "#060608",
+        backgroundColor: "#1a1d2a",
         fontFamily: "'DM Sans', sans-serif",
         color: "#ffffff",
         display: "flex",
@@ -25,7 +25,7 @@ export default function Slide01Title() {
           justifyContent: "space-between",
           position: "relative",
           zIndex: 10,
-          backgroundColor: "#060608",
+          backgroundColor: "#1a1d2a",
         }}
       >
         {/* LEVEL 1: BRAND */}
@@ -43,10 +43,10 @@ export default function Slide01Title() {
             }}
           >
             <svg width="60%" height="60%" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#060608" />
-              <path d="M19 10a7 7 0 0 1-14 0" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-              <line x1="12" y1="17" x2="12" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="8" y1="21" x2="16" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#1a1d2a" />
+              <path d="M19 10a7 7 0 0 1-14 0" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              <line x1="12" y1="17" x2="12" y2="21" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="8" y1="21" x2="16" y2="21" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </div>
           <span
@@ -133,7 +133,7 @@ export default function Slide01Title() {
             left: 0,
             width: "100%",
             height: "100%",
-            background: "linear-gradient(to right, #060608 0%, transparent 18%)",
+            background: "linear-gradient(to right, #1a1d2a 0%, transparent 18%)",
             zIndex: 5,
           }}
         />

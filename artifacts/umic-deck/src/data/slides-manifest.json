@@ -8,8 +8,16 @@
     "speakerNotes": ""
   },
   {
-    "id": "f1a2b3c4-0002-4002-8002-000000000002",
+    "id": "f1a2b3c4-0002-4002-8002-000000000099",
     "position": 2,
+    "filepath": "src/pages/slides/Slide02Origin.tsx",
+    "title": "Our Story",
+    "description": "Origin and mission: why we built uMic.me",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f1a2b3c4-0002-4002-8002-000000000002",
+    "position": 3,
     "filepath": "src/pages/slides/Slide02Problem.tsx",
     "title": "The Problem",
     "description": "Three pain points at live events: distance, translation, follow-along",
@@ -17,7 +25,7 @@
   },
   {
     "id": "f1a2b3c4-0003-4003-8003-000000000003",
-    "position": 3,
+    "position": 4,
     "filepath": "src/pages/slides/Slide03ForHosts.tsx",
     "title": "For Hosts",
     "description": "Host features: create QR event, stream live audio, manage Q&A queue",
@@ -25,7 +33,7 @@
   },
   {
     "id": "f1a2b3c4-0004-4004-8004-000000000004",
-    "position": 4,
+    "position": 5,
     "filepath": "src/pages/slides/Slide04ForAttendees.tsx",
     "title": "For Attendees",
     "description": "Attendee experience: scan, enter name, listen, raise hand",
@@ -33,7 +41,7 @@
   },
   {
     "id": "f1a2b3c4-0005-4005-8005-000000000005",
-    "position": 5,
+    "position": 6,
     "filepath": "src/pages/slides/Slide05ComicPanels.tsx",
     "title": "Follow Alex",
     "description": "6-panel cartoon story showing the full attendee journey with uMic.me",
@@ -41,7 +49,7 @@
   },
   {
     "id": "f1a2b3c4-0010-4010-8010-000000000010",
-    "position": 6,
+    "position": 7,
     "filepath": "src/pages/slides/Slide10Closing.tsx",
     "title": "uMic.me — Closing",
     "description": "Closing brand slide with tagline and domain",

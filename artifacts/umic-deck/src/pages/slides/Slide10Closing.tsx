@@ -2,7 +2,7 @@ export default function Slide10Closing() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ background: "#060608" }}
+      style={{ background: "#1a1d2a" }}
     >
       <div
         className="absolute inset-0"
