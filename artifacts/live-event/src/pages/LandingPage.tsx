@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import panel2 from "@assets/panel_2_scanning_1775592496171.png";
 import panel3 from "@assets/panel_3_listening_1775592496177.png";
 import panel4 from "@assets/panel_4_QyA_begins_1775592496178.png";
-import hostEventSetup from "@assets/Host_Event_setup_1_1775706612953.jpeg";
+import hostEventSetup from "@assets/Event_Setup_6_cropped_1775712926072.png";
 import hostPrintFlyer from "@assets/Host_Prints_flyers_1_1775706612952.jpeg";
 import hostPaIntegration from "@assets/Host_PA_Integration_1_1775706612952.jpeg";
 
