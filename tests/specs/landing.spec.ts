@@ -9,7 +9,7 @@ test.describe("Landing Page", () => {
   test('shows the "Host an Event" CTA button', async ({ page }) => {
     await page.goto("/");
     const cta = page
-      .getByRole("button", { name: /Host an Event/i })
+      .getByRole("link", { name: /Host an Event/i })
       .first();
     await expect(cta).toBeVisible();
   });
