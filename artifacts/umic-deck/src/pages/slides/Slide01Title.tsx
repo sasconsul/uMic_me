@@ -2,128 +2,154 @@ const base = import.meta.env.BASE_URL;
 
 export default function Slide01Title() {
   return (
-    <div className="relative w-screen h-screen overflow-hidden" style={{ background: "#060608" }}>
-      <img
-        src={`${base}hero.png`}
-        crossOrigin="anonymous"
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: 0.32 }}
-      />
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        position: "relative",
+        backgroundColor: "#060608",
+        fontFamily: "'DM Sans', sans-serif",
+        color: "#ffffff",
+        display: "flex",
+      }}
+    >
+      {/* LEFT CONTENT PANEL — solid background, strict reading order */}
       <div
-        className="absolute inset-0"
-        style={{ background: "linear-gradient(105deg, rgba(6,6,8,0.92) 0%, rgba(6,6,8,0.55) 55%, rgba(6,6,8,0.3) 100%)" }}
-      />
-
-      <div
-        className="absolute"
         style={{
-          top: "5.5vh",
-          left: "5.5vw",
+          width: "60%",
+          height: "100%",
+          padding: "8.33% 6.25%",
           display: "flex",
-          alignItems: "center",
-          gap: "0.7vw",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          position: "relative",
+          zIndex: 10,
+          backgroundColor: "#060608",
         }}
       >
+        {/* LEVEL 1: BRAND */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div
+            style={{
+              width: "2.2vw",
+              height: "2.2vw",
+              borderRadius: "0.45vw",
+              background: "#00d4ff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="60%" height="60%" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#060608" />
+              <path d="M19 10a7 7 0 0 1-14 0" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              <line x1="12" y1="17" x2="12" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="8" y1="21" x2="16" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <span
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: "1.7vw",
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "#00d4ff",
+            }}
+          >
+            uMic.me
+          </span>
+        </div>
+
+        {/* CORE CONTENT BLOCK — Levels 2, 3, 4 */}
+        <div style={{ marginTop: "auto", marginBottom: "auto" }}>
+          {/* LEVEL 2: CATEGORY LABEL */}
+          <div
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: "1.1vw",
+              fontWeight: 600,
+              letterSpacing: "0.2em",
+              color: "#00d4ff",
+              textTransform: "uppercase",
+              marginBottom: "2.5vh",
+              display: "flex",
+              alignItems: "center",
+              gap: "1.1vw",
+            }}
+          >
+            <div style={{ width: "2.5vw", height: "2px", backgroundColor: "#00d4ff", flexShrink: 0 }} />
+            Live Event Audio Platform
+          </div>
+
+          {/* LEVEL 3: HEADLINE */}
+          <h1
+            style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontSize: "6.5vw",
+              fontWeight: 700,
+              lineHeight: 1.05,
+              letterSpacing: "-0.03em",
+              color: "#ffffff",
+              marginBottom: "4vh",
+              maxWidth: "52vw",
+            }}
+          >
+            Stream audio to{" "}
+            <span style={{ color: "#00d4ff" }}>every seat</span>{" "}
+            in the room.
+          </h1>
+
+          {/* LEVEL 4: TAGLINE */}
+          <p
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: "2vw",
+              fontWeight: 400,
+              lineHeight: 1.5,
+              color: "#A0A0A5",
+              maxWidth: "44vw",
+            }}
+          >
+            Hosts broadcast live. Attendees listen on any phone. No apps. No lag. No missed words.
+          </p>
+        </div>
+      </div>
+
+      {/* RIGHT IMAGE PANEL — decorative only */}
+      <div
+        style={{
+          width: "40%",
+          height: "100%",
+          position: "relative",
+        }}
+      >
+        {/* Fade edge blending left panel into image */}
         <div
           style={{
-            width: "2.2vw",
-            height: "2.2vw",
-            borderRadius: "0.45vw",
-            background: "#00d4ff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "linear-gradient(to right, #060608 0%, transparent 18%)",
+            zIndex: 5,
           }}
-        >
-          <svg width="60%" height="60%" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#060608" />
-            <path d="M19 10a7 7 0 0 1-14 0" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-            <line x1="12" y1="17" x2="12" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="8" y1="21" x2="16" y2="21" stroke="#060608" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-        </div>
-        <span
+        />
+        <img
+          src={`${base}hero.png`}
+          crossOrigin="anonymous"
+          alt=""
           style={{
-            fontFamily: "Space Grotesk",
-            fontSize: "1.7vw",
-            fontWeight: 700,
-            color: "#00d4ff",
-            letterSpacing: "-0.02em",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.8,
+            filter: "grayscale(20%) contrast(110%)",
           }}
-        >
-          uMic.me
-        </span>
+        />
       </div>
-
-      <div
-        className="absolute"
-        style={{ left: "5.5vw", bottom: "14vh", maxWidth: "58vw" }}
-      >
-        <div
-          style={{
-            fontFamily: "DM Sans",
-            fontSize: "1.1vw",
-            fontWeight: 600,
-            color: "#00d4ff",
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            marginBottom: "2vh",
-          }}
-        >
-          Live Event Audio Platform
-        </div>
-        <h1
-          style={{
-            fontFamily: "Space Grotesk",
-            fontSize: "6vw",
-            fontWeight: 800,
-            color: "#ffffff",
-            lineHeight: 1.0,
-            letterSpacing: "-0.05em",
-            margin: 0,
-          }}
-        >
-          Stream audio to every seat in the room.
-        </h1>
-        <p
-          style={{
-            fontFamily: "DM Sans",
-            fontSize: "1.75vw",
-            fontWeight: 400,
-            color: "rgba(255,255,255,0.5)",
-            marginTop: "2.5vh",
-            lineHeight: 1.55,
-            maxWidth: "42vw",
-          }}
-        >
-          Hosts broadcast live. Attendees listen on any phone. No apps. No lag. No missed words.
-        </p>
-      </div>
-
-      <div
-        className="absolute"
-        style={{
-          bottom: "5.5vh",
-          right: "5.5vw",
-          fontFamily: "DM Sans",
-          fontSize: "1vw",
-          color: "rgba(255,255,255,0.25)",
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-        }}
-      >
-        uMic.me
-      </div>
-
-      <div
-        className="absolute bottom-0 left-0"
-        style={{
-          height: "0.35vh",
-          width: "65%",
-          background: "linear-gradient(to right, #00d4ff, transparent)",
-        }}
-      />
     </div>
   );
 }
