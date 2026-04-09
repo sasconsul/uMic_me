@@ -20,7 +20,7 @@ export default function Slide04ForAttendees() {
           fontFamily: "Space Grotesk",
           fontSize: "1.3vw",
           fontWeight: 700,
-          color: "rgba(255,255,255,0.3)",
+          color: "#00d4ff",
           letterSpacing: "-0.01em",
         }}
       >
@@ -95,7 +95,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.5)",
+                  color: "rgba(255,255,255,0.82)",
                   lineHeight: 1.5,
                 }}
               >
@@ -119,7 +119,7 @@ export default function Slide04ForAttendees() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.4vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.6)",
+                color: "#00d4ff",
               }}
             >
               2
@@ -140,7 +140,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.5)",
+                  color: "rgba(255,255,255,0.82)",
                   lineHeight: 1.5,
                 }}
               >
@@ -164,7 +164,7 @@ export default function Slide04ForAttendees() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.4vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.6)",
+                color: "#00d4ff",
               }}
             >
               3
@@ -185,7 +185,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.5)",
+                  color: "rgba(255,255,255,0.82)",
                   lineHeight: 1.5,
                 }}
               >
@@ -252,7 +252,7 @@ export default function Slide04ForAttendees() {
             <div style={{ width: "0.5vw", height: "3.5vh", background: "#00d4ff", borderRadius: "0.2vw", opacity: 0.85 }} />
             <div style={{ width: "0.5vw", height: "1.8vh", background: "#00d4ff", borderRadius: "0.2vw", opacity: 0.65 }} />
           </div>
-          <div style={{ fontFamily: "DM Sans", fontSize: "0.8vw", color: "rgba(255,255,255,0.35)" }}>Now listening...</div>
+          <div style={{ fontFamily: "DM Sans", fontSize: "0.8vw", color: "rgba(255,255,255,0.82)" }}>Now listening...</div>
 
           <div
             style={{

@@ -108,7 +108,7 @@ export default function Slide01Title() {
               fontSize: "2vw",
               fontWeight: 400,
               lineHeight: 1.5,
-              color: "#A0A0A5",
+              color: "rgba(255,255,255,0.82)",
               maxWidth: "44vw",
             }}
           >

@@ -91,7 +91,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.48)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >
@@ -111,7 +111,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "3.8vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.38)",
+                color: "rgba(0,212,255,0.7)",
                 lineHeight: 1,
                 marginBottom: "1.8vh",
                 letterSpacing: "-0.04em",
@@ -136,7 +136,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.48)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >
@@ -156,7 +156,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "3.8vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.38)",
+                color: "rgba(0,212,255,0.7)",
                 lineHeight: 1,
                 marginBottom: "1.8vh",
                 letterSpacing: "-0.04em",
@@ -181,7 +181,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.48)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >

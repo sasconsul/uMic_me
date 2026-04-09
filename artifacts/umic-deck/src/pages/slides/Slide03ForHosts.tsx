@@ -24,7 +24,7 @@ export default function Slide03ForHosts() {
           fontFamily: "Space Grotesk",
           fontSize: "1.3vw",
           fontWeight: 700,
-          color: "rgba(255,255,255,0.3)",
+          color: "#00d4ff",
           letterSpacing: "-0.01em",
         }}
       >
@@ -103,7 +103,7 @@ export default function Slide03ForHosts() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.5)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >
@@ -147,7 +147,7 @@ export default function Slide03ForHosts() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.5)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >
@@ -190,7 +190,7 @@ export default function Slide03ForHosts() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.5)",
+                color: "rgba(255,255,255,0.82)",
                 lineHeight: 1.55,
               }}
             >

@@ -39,7 +39,7 @@ export default function Slide02Origin() {
           fontFamily: "'Space Grotesk', sans-serif",
           fontSize: "1vw",
           fontWeight: 600,
-          color: "rgba(255,255,255,0.18)",
+          color: "rgba(255,255,255,0.5)",
           letterSpacing: "0.1em",
         }}
       >
@@ -131,7 +131,7 @@ export default function Slide02Origin() {
               fontSize: "1.65vw",
               fontWeight: 400,
               lineHeight: 1.65,
-              color: "rgba(255,255,255,0.62)",
+              color: "rgba(255,255,255,0.82)",
               margin: 0,
             }}
           >

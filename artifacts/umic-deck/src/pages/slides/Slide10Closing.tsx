@@ -60,7 +60,7 @@ export default function Slide10Closing() {
             fontFamily: "Space Grotesk",
             fontSize: "2.8vw",
             fontWeight: 400,
-            color: "rgba(255,255,255,0.6)",
+            color: "rgba(255,255,255,0.85)",
             letterSpacing: "-0.02em",
             margin: 0,
             textAlign: "center",
@@ -103,7 +103,7 @@ export default function Slide10Closing() {
               style={{
                 fontFamily: "DM Sans",
                 fontSize: "1.4vw",
-                color: "rgba(255,255,255,0.45)",
+                color: "rgba(255,255,255,0.85)",
               }}
             >
               Create. Stream. Manage Q&amp;A.
@@ -134,7 +134,7 @@ export default function Slide10Closing() {
               style={{
                 fontFamily: "DM Sans",
                 fontSize: "1.4vw",
-                color: "rgba(255,255,255,0.45)",
+                color: "rgba(255,255,255,0.85)",
               }}
             >
               Scan. Listen. Raise hand.

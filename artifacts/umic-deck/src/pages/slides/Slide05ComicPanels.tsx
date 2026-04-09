@@ -30,7 +30,7 @@ export default function Slide05ComicPanels() {
             fontFamily: "DM Sans",
             fontSize: "1.4vw",
             fontWeight: 600,
-            color: "rgba(255,255,255,0.45)",
+            color: "rgba(255,255,255,0.82)",
             letterSpacing: "0.08em",
           }}
         >
