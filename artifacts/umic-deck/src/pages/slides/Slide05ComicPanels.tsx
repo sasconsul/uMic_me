@@ -2,7 +2,7 @@ export default function Slide05ComicPanels() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ backgroundColor: "#1a1d2a" }}
+      style={{ backgroundColor: "#FFFBEA" }}
     >
       <div
         className="absolute top-0 left-0 right-0"

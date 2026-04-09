@@ -8,13 +8,13 @@ export default function Slide01Title() {
         height: "100%",
         overflow: "hidden",
         position: "relative",
-        backgroundColor: "#1a1d2a",
+        backgroundColor: "#FFFBEA",
         fontFamily: "'DM Sans', sans-serif",
-        color: "#ffffff",
+        color: "#1a1d2a",
         display: "flex",
       }}
     >
-      {/* LEFT CONTENT PANEL — solid background, strict reading order */}
+      {/* LEFT CONTENT PANEL */}
       <div
         style={{
           width: "60%",
@@ -25,7 +25,7 @@ export default function Slide01Title() {
           justifyContent: "space-between",
           position: "relative",
           zIndex: 10,
-          backgroundColor: "#1a1d2a",
+          backgroundColor: "#FFFBEA",
         }}
       >
         {/* LEVEL 1: BRAND */}
@@ -35,7 +35,7 @@ export default function Slide01Title() {
               width: "2.2vw",
               height: "2.2vw",
               borderRadius: "0.45vw",
-              background: "#00d4ff",
+              background: "#005f73",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -43,10 +43,10 @@ export default function Slide01Title() {
             }}
           >
             <svg width="60%" height="60%" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#1a1d2a" />
-              <path d="M19 10a7 7 0 0 1-14 0" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-              <line x1="12" y1="17" x2="12" y2="21" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" />
-              <line x1="8" y1="21" x2="16" y2="21" stroke="#1a1d2a" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M12 2a5 5 0 0 1 5 5v5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" fill="#FFFBEA" />
+              <path d="M19 10a7 7 0 0 1-14 0" stroke="#FFFBEA" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+              <line x1="12" y1="17" x2="12" y2="21" stroke="#FFFBEA" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="8" y1="21" x2="16" y2="21" stroke="#FFFBEA" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </div>
           <span
@@ -55,14 +55,14 @@ export default function Slide01Title() {
               fontSize: "1.7vw",
               fontWeight: 700,
               letterSpacing: "-0.02em",
-              color: "#00d4ff",
+              color: "#005f73",
             }}
           >
             uMic.me
           </span>
         </div>
 
-        {/* CORE CONTENT BLOCK — Levels 2, 3, 4 */}
+        {/* CORE CONTENT BLOCK */}
         <div style={{ marginTop: "auto", marginBottom: "auto" }}>
           {/* LEVEL 2: CATEGORY LABEL */}
           <div
@@ -71,7 +71,7 @@ export default function Slide01Title() {
               fontSize: "1.1vw",
               fontWeight: 600,
               letterSpacing: "0.2em",
-              color: "#00d4ff",
+              color: "#005f73",
               textTransform: "uppercase",
               marginBottom: "2.5vh",
               display: "flex",
@@ -79,7 +79,7 @@ export default function Slide01Title() {
               gap: "1.1vw",
             }}
           >
-            <div style={{ width: "2.5vw", height: "2px", backgroundColor: "#00d4ff", flexShrink: 0 }} />
+            <div style={{ width: "2.5vw", height: "2px", backgroundColor: "#005f73", flexShrink: 0 }} />
             Live Event Audio Platform
           </div>
 
@@ -91,13 +91,13 @@ export default function Slide01Title() {
               fontWeight: 700,
               lineHeight: 1.05,
               letterSpacing: "-0.03em",
-              color: "#ffffff",
+              color: "#1a1d2a",
               marginBottom: "4vh",
               maxWidth: "52vw",
             }}
           >
             Stream audio to{" "}
-            <span style={{ color: "#00d4ff" }}>every seat</span>{" "}
+            <span style={{ color: "#005f73" }}>every seat</span>{" "}
             in the room.
           </h1>
 
@@ -108,7 +108,7 @@ export default function Slide01Title() {
               fontSize: "2vw",
               fontWeight: 400,
               lineHeight: 1.5,
-              color: "rgba(255,255,255,0.82)",
+              color: "#3d4157",
               maxWidth: "44vw",
             }}
           >
@@ -117,7 +117,7 @@ export default function Slide01Title() {
         </div>
       </div>
 
-      {/* RIGHT IMAGE PANEL — decorative only */}
+      {/* RIGHT IMAGE PANEL */}
       <div
         style={{
           width: "40%",
@@ -125,7 +125,7 @@ export default function Slide01Title() {
           position: "relative",
         }}
       >
-        {/* Fade edge blending left panel into image */}
+        {/* Fade edge */}
         <div
           style={{
             position: "absolute",
@@ -133,7 +133,7 @@ export default function Slide01Title() {
             left: 0,
             width: "100%",
             height: "100%",
-            background: "linear-gradient(to right, #1a1d2a 0%, transparent 18%)",
+            background: "linear-gradient(to right, #FFFBEA 0%, transparent 18%)",
             zIndex: 5,
           }}
         />
@@ -145,8 +145,8 @@ export default function Slide01Title() {
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            opacity: 0.8,
-            filter: "grayscale(20%) contrast(110%)",
+            opacity: 0.65,
+            filter: "sepia(20%) contrast(105%)",
           }}
         />
       </div>

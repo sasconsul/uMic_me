@@ -2,13 +2,13 @@ export default function Slide02Problem() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ background: "#1a1d2a" }}
+      style={{ background: "#FFFBEA" }}
     >
       <div
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+            "linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)",
           backgroundSize: "6vw 6vw",
         }}
       />
@@ -21,7 +21,7 @@ export default function Slide02Problem() {
           fontFamily: "Space Grotesk",
           fontSize: "1.3vw",
           fontWeight: 700,
-          color: "#00d4ff",
+          color: "#005f73",
           letterSpacing: "-0.01em",
         }}
       >
@@ -37,7 +37,7 @@ export default function Slide02Problem() {
             fontFamily: "DM Sans",
             fontSize: "1.1vw",
             fontWeight: 600,
-            color: "#00d4ff",
+            color: "#005f73",
             letterSpacing: "0.22em",
             textTransform: "uppercase",
             marginBottom: "1.5vh",
@@ -50,7 +50,7 @@ export default function Slide02Problem() {
             fontFamily: "Space Grotesk",
             fontSize: "4.4vw",
             fontWeight: 800,
-            color: "#ffffff",
+            color: "#1a1d2a",
             lineHeight: 1.05,
             letterSpacing: "-0.04em",
             marginBottom: "6.5vh",
@@ -60,13 +60,13 @@ export default function Slide02Problem() {
         </h2>
 
         <div style={{ display: "flex", gap: "2.5vw" }}>
-          <div style={{ flex: 1, borderTop: "2px solid #00d4ff", paddingTop: "2.5vh" }}>
+          <div style={{ flex: 1, borderTop: "2px solid #005f73", paddingTop: "2.5vh" }}>
             <div
               style={{
                 fontFamily: "Space Grotesk",
                 fontSize: "3.8vw",
                 fontWeight: 800,
-                color: "#00d4ff",
+                color: "#005f73",
                 lineHeight: 1,
                 marginBottom: "1.8vh",
                 letterSpacing: "-0.04em",
@@ -79,7 +79,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.9vw",
                 fontWeight: 700,
-                color: "#ffffff",
+                color: "#1a1d2a",
                 marginBottom: "1.2vh",
                 lineHeight: 1.2,
               }}
@@ -91,7 +91,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.82)",
+                color: "#3d4157",
                 lineHeight: 1.55,
               }}
             >
@@ -102,7 +102,7 @@ export default function Slide02Problem() {
           <div
             style={{
               flex: 1,
-              borderTop: "2px solid rgba(0,212,255,0.3)",
+              borderTop: "2px solid rgba(0,95,115,0.35)",
               paddingTop: "2.5vh",
             }}
           >
@@ -111,7 +111,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "3.8vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.7)",
+                color: "rgba(0,95,115,0.5)",
                 lineHeight: 1,
                 marginBottom: "1.8vh",
                 letterSpacing: "-0.04em",
@@ -124,7 +124,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.9vw",
                 fontWeight: 700,
-                color: "#ffffff",
+                color: "#1a1d2a",
                 marginBottom: "1.2vh",
                 lineHeight: 1.2,
               }}
@@ -136,7 +136,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.82)",
+                color: "#3d4157",
                 lineHeight: 1.55,
               }}
             >
@@ -147,7 +147,7 @@ export default function Slide02Problem() {
           <div
             style={{
               flex: 1,
-              borderTop: "2px solid rgba(0,212,255,0.3)",
+              borderTop: "2px solid rgba(0,95,115,0.35)",
               paddingTop: "2.5vh",
             }}
           >
@@ -156,7 +156,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "3.8vw",
                 fontWeight: 800,
-                color: "rgba(0,212,255,0.7)",
+                color: "rgba(0,95,115,0.5)",
                 lineHeight: 1,
                 marginBottom: "1.8vh",
                 letterSpacing: "-0.04em",
@@ -169,7 +169,7 @@ export default function Slide02Problem() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.9vw",
                 fontWeight: 700,
-                color: "#ffffff",
+                color: "#1a1d2a",
                 marginBottom: "1.2vh",
                 lineHeight: 1.2,
               }}
@@ -181,7 +181,7 @@ export default function Slide02Problem() {
                 fontFamily: "DM Sans",
                 fontSize: "1.5vw",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.82)",
+                color: "#3d4157",
                 lineHeight: 1.55,
               }}
             >

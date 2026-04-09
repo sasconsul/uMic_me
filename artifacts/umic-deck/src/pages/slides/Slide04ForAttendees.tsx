@@ -2,13 +2,13 @@ export default function Slide04ForAttendees() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ background: "#1a1d2a" }}
+      style={{ background: "#FFFBEA" }}
     >
       <div
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 70% 50%, rgba(0,212,255,0.06) 0%, transparent 60%)",
+            "radial-gradient(circle at 70% 50%, rgba(0,95,115,0.05) 0%, transparent 60%)",
         }}
       />
 
@@ -20,7 +20,7 @@ export default function Slide04ForAttendees() {
           fontFamily: "Space Grotesk",
           fontSize: "1.3vw",
           fontWeight: 700,
-          color: "#00d4ff",
+          color: "#005f73",
           letterSpacing: "-0.01em",
         }}
       >
@@ -36,7 +36,7 @@ export default function Slide04ForAttendees() {
             fontFamily: "DM Sans",
             fontSize: "1.1vw",
             fontWeight: 600,
-            color: "#00d4ff",
+            color: "#005f73",
             letterSpacing: "0.22em",
             textTransform: "uppercase",
             marginBottom: "1.2vh",
@@ -49,7 +49,7 @@ export default function Slide04ForAttendees() {
             fontFamily: "Space Grotesk",
             fontSize: "4.4vw",
             fontWeight: 800,
-            color: "#ffffff",
+            color: "#1a1d2a",
             lineHeight: 1.0,
             letterSpacing: "-0.04em",
             marginBottom: "5vh",
@@ -65,8 +65,8 @@ export default function Slide04ForAttendees() {
                 width: "3.5vw",
                 height: "3.5vw",
                 borderRadius: "50%",
-                background: "rgba(0,212,255,0.12)",
-                border: "1.5px solid #00d4ff",
+                background: "rgba(0,95,115,0.1)",
+                border: "1.5px solid #005f73",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -74,7 +74,7 @@ export default function Slide04ForAttendees() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.4vw",
                 fontWeight: 800,
-                color: "#00d4ff",
+                color: "#005f73",
               }}
             >
               1
@@ -85,7 +85,7 @@ export default function Slide04ForAttendees() {
                   fontFamily: "Space Grotesk",
                   fontSize: "1.9vw",
                   fontWeight: 700,
-                  color: "#ffffff",
+                  color: "#1a1d2a",
                   marginBottom: "0.5vh",
                 }}
               >
@@ -95,7 +95,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.82)",
+                  color: "#3d4157",
                   lineHeight: 1.5,
                 }}
               >
@@ -110,8 +110,8 @@ export default function Slide04ForAttendees() {
                 width: "3.5vw",
                 height: "3.5vw",
                 borderRadius: "50%",
-                background: "rgba(0,212,255,0.12)",
-                border: "1.5px solid rgba(0,212,255,0.4)",
+                background: "rgba(0,95,115,0.1)",
+                border: "1.5px solid rgba(0,95,115,0.4)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -119,7 +119,7 @@ export default function Slide04ForAttendees() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.4vw",
                 fontWeight: 800,
-                color: "#00d4ff",
+                color: "#005f73",
               }}
             >
               2
@@ -130,7 +130,7 @@ export default function Slide04ForAttendees() {
                   fontFamily: "Space Grotesk",
                   fontSize: "1.9vw",
                   fontWeight: 700,
-                  color: "#ffffff",
+                  color: "#1a1d2a",
                   marginBottom: "0.5vh",
                 }}
               >
@@ -140,7 +140,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.82)",
+                  color: "#3d4157",
                   lineHeight: 1.5,
                 }}
               >
@@ -155,8 +155,8 @@ export default function Slide04ForAttendees() {
                 width: "3.5vw",
                 height: "3.5vw",
                 borderRadius: "50%",
-                background: "rgba(0,212,255,0.12)",
-                border: "1.5px solid rgba(0,212,255,0.4)",
+                background: "rgba(0,95,115,0.1)",
+                border: "1.5px solid rgba(0,95,115,0.4)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -164,7 +164,7 @@ export default function Slide04ForAttendees() {
                 fontFamily: "Space Grotesk",
                 fontSize: "1.4vw",
                 fontWeight: 800,
-                color: "#00d4ff",
+                color: "#005f73",
               }}
             >
               3
@@ -175,7 +175,7 @@ export default function Slide04ForAttendees() {
                   fontFamily: "Space Grotesk",
                   fontSize: "1.9vw",
                   fontWeight: 700,
-                  color: "#ffffff",
+                  color: "#1a1d2a",
                   marginBottom: "0.5vh",
                 }}
               >
@@ -185,7 +185,7 @@ export default function Slide04ForAttendees() {
                 style={{
                   fontFamily: "DM Sans",
                   fontSize: "1.5vw",
-                  color: "rgba(255,255,255,0.82)",
+                  color: "#3d4157",
                   lineHeight: 1.5,
                 }}
               >
@@ -196,6 +196,7 @@ export default function Slide04ForAttendees() {
         </div>
       </div>
 
+      {/* Phone mockup — kept dark to represent a device screen */}
       <div
         className="absolute"
         style={{
@@ -207,7 +208,7 @@ export default function Slide04ForAttendees() {
           background: "#111120",
           borderRadius: "2vw",
           border: "0.3vw solid #222235",
-          boxShadow: "0 0 6vw rgba(0,212,255,0.12)",
+          boxShadow: "0 0 3vw rgba(0,95,115,0.18), 0 8px 32px rgba(0,0,0,0.18)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",

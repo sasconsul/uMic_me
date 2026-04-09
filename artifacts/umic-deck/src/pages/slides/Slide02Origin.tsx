@@ -2,14 +2,14 @@ export default function Slide02Origin() {
   return (
     <div
       className="relative w-screen h-screen overflow-hidden"
-      style={{ background: "#1a1d2a", fontFamily: "'DM Sans', sans-serif" }}
+      style={{ background: "#FFFBEA", fontFamily: "'DM Sans', sans-serif" }}
     >
-      {/* Subtle radial glow */}
+      {/* Subtle radial tint */}
       <div
         className="absolute inset-0"
         style={{
           backgroundImage:
-            "radial-gradient(ellipse at 30% 55%, rgba(0,212,255,0.06) 0%, transparent 60%)",
+            "radial-gradient(ellipse at 30% 55%, rgba(0,95,115,0.05) 0%, transparent 60%)",
           pointerEvents: "none",
         }}
       />
@@ -23,7 +23,7 @@ export default function Slide02Origin() {
           fontFamily: "'Space Grotesk', sans-serif",
           fontSize: "1.3vw",
           fontWeight: 700,
-          color: "#00d4ff",
+          color: "#005f73",
           letterSpacing: "-0.01em",
         }}
       >
@@ -39,14 +39,14 @@ export default function Slide02Origin() {
           fontFamily: "'Space Grotesk', sans-serif",
           fontSize: "1vw",
           fontWeight: 600,
-          color: "rgba(255,255,255,0.5)",
+          color: "rgba(0,0,0,0.28)",
           letterSpacing: "0.1em",
         }}
       >
         02
       </div>
 
-      {/* Main content — full-width editorial layout */}
+      {/* Main content */}
       <div
         className="absolute"
         style={{
@@ -66,7 +66,7 @@ export default function Slide02Origin() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            borderRight: "1px solid rgba(255,255,255,0.06)",
+            borderRight: "1px solid rgba(0,0,0,0.1)",
           }}
         >
           {/* Section label */}
@@ -75,7 +75,7 @@ export default function Slide02Origin() {
               fontFamily: "'Space Grotesk', sans-serif",
               fontSize: "1.05vw",
               fontWeight: 600,
-              color: "#00d4ff",
+              color: "#005f73",
               letterSpacing: "0.22em",
               textTransform: "uppercase",
               marginBottom: "3.5vh",
@@ -88,7 +88,7 @@ export default function Slide02Origin() {
               style={{
                 width: "2.5vw",
                 height: "2px",
-                backgroundColor: "#00d4ff",
+                backgroundColor: "#005f73",
                 flexShrink: 0,
               }}
             />
@@ -103,13 +103,13 @@ export default function Slide02Origin() {
               fontWeight: 700,
               lineHeight: 1.18,
               letterSpacing: "-0.03em",
-              color: "#ffffff",
+              color: "#1a1d2a",
               margin: 0,
               padding: 0,
             }}
           >
             In a world full of big ideas, the biggest barrier shouldn't be{" "}
-            <span style={{ color: "#00d4ff" }}>the room itself.</span>
+            <span style={{ color: "#005f73" }}>the room itself.</span>
           </blockquote>
         </div>
 
@@ -131,7 +131,7 @@ export default function Slide02Origin() {
               fontSize: "1.65vw",
               fontWeight: 400,
               lineHeight: 1.65,
-              color: "rgba(255,255,255,0.82)",
+              color: "#3d4157",
               margin: 0,
             }}
           >
@@ -147,9 +147,9 @@ export default function Slide02Origin() {
               fontSize: "1.65vw",
               fontWeight: 600,
               lineHeight: 1.55,
-              color: "rgba(255,255,255,0.88)",
+              color: "#1a1d2a",
               margin: 0,
-              borderLeft: "3px solid #00d4ff",
+              borderLeft: "3px solid #005f73",
               paddingLeft: "1.5vw",
             }}
           >
