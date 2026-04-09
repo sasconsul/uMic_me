@@ -5,6 +5,9 @@ import { Link } from "wouter";
 import panel2 from "@assets/panel_2_scanning_1775592496171.png";
 import panel3 from "@assets/panel_3_listening_1775592496177.png";
 import panel4 from "@assets/panel_4_QyA_begins_1775592496178.png";
+import hostEventSetup from "@assets/Host_Event_setup_1_1775706612953.jpeg";
+import hostPrintFlyer from "@assets/Host_Prints_flyers_1_1775706612952.jpeg";
+import hostPaIntegration from "@assets/Host_PA_Integration_1_1775706612952.jpeg";
 
 export function LandingPage() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -122,31 +125,36 @@ export function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list" aria-label="Host features">
             {[
               {
+                panel: hostEventSetup,
+                panelAlt: "Event setup — create your event in seconds",
                 icon: CalendarPlus,
                 title: "Event Setup",
                 desc: "Create your event in seconds — set a title, add a logo, and get a unique join link instantly.",
               },
               {
+                panel: hostPrintFlyer,
+                panelAlt: "Print a flyer — customise and print a branded QR code flyer",
                 icon: Printer,
                 title: "Print a Flyer",
                 desc: "Customise and print a branded QR code flyer to post at your venue before the event.",
               },
               {
+                panel: hostPaIntegration,
+                panelAlt: "PA integration — stream to your PA system as needed",
                 icon: Mic,
                 title: "PA Integration",
                 desc: "Simultaneously stream to your PA system and individual devices.",
               },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                role="listitem"
-                className="bg-card border border-border rounded-xl p-6 text-left space-y-3"
-              >
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
-                  <Icon className="w-5 h-5 text-primary" />
+            ].map(({ panel, panelAlt, icon: Icon, title, desc }) => (
+              <div key={title} role="listitem" className="flex flex-col gap-4">
+                <img src={panel} alt={panelAlt} className="rounded-xl object-contain w-full" />
+                <div className="bg-card border border-border rounded-xl p-6 text-left space-y-3 flex-1">
+                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
+                    <Icon className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="text-sm text-muted-foreground">{desc}</p>
                 </div>
-                <h3 className="font-semibold">{title}</h3>
-                <p className="text-sm text-muted-foreground">{desc}</p>
               </div>
             ))}
           </div>
