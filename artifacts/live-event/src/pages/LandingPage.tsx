@@ -56,7 +56,6 @@ export function LandingPage() {
           </div>
         </nav>
       </header>
-
       <main id="main-content" className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
         <div className="max-w-3xl space-y-8">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium" aria-hidden="true">
@@ -66,9 +65,9 @@ export function LandingPage() {
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
             Stream audio to every seat in the room
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Host live events, broadcast crystal-clear audio to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.
-          </p>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Host live events, broadcast crystal-clear audio to all attendee devices and your PA system, manage Q&A with a real-time hand-raise queue.
+
+          Sign in now to host your live event:</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={handleHostAction}
