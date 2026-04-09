@@ -107,9 +107,7 @@ export function LandingPage() {
               },
             ].map(({ panel, panelAlt, icon: Icon, title, desc }) => (
               <div key={title} role="listitem" className="flex flex-col gap-4">
-                <div className="rounded-xl overflow-hidden aspect-[4/3] w-full bg-muted/20">
-                  <img src={panel} alt={panelAlt} className="w-full h-full object-contain" />
-                </div>
+                <img src={panel} alt={panelAlt} className="rounded-xl object-contain w-full" />
                 <div className="bg-card border border-border rounded-xl p-6 text-left space-y-3 flex-1">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
                     <Icon className="w-5 h-5 text-primary" />
@@ -149,9 +147,7 @@ export function LandingPage() {
               },
             ].map(({ panel, panelAlt, icon: Icon, title, desc }) => (
               <div key={title} role="listitem" className="flex flex-col gap-4">
-                <div className="rounded-xl overflow-hidden aspect-[4/3] w-full bg-muted/20">
-                  <img src={panel} alt={panelAlt} className="w-full h-full object-contain" />
-                </div>
+                <img src={panel} alt={panelAlt} className="rounded-xl object-contain w-full" />
                 <div className="bg-card border border-border rounded-xl p-6 text-left space-y-3 flex-1">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center" aria-hidden="true">
                     <Icon className="w-5 h-5 text-primary" />
