@@ -23,10 +23,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+
+function formatEventDate(dateString: string): string {
+  return new Intl.DateTimeFormat(navigator.language, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(dateString));
+}
 
 export function HostDashboard() {
   const { user } = useUser();
@@ -44,6 +60,9 @@ export function HostDashboard() {
   const [duplicatingEventId, setDuplicatingEventId] = useState<number | null>(null);
   const [duplicateTitle, setDuplicateTitle] = useState("");
   const [duplicateStartTime, setDuplicateStartTime] = useState("");
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
 
   const { uploadFile, isUploading } = useUpload({
     onSuccess: (res) => {
@@ -152,7 +171,7 @@ export function HostDashboard() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center" aria-hidden="true">
             <Radio className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">uMic.me</span>
+          <span className="font-bold text-lg" translate="no">uMic.me</span>
         </div>
         <div className="flex items-center gap-4">
           {user?.imageUrl && (
@@ -175,6 +194,40 @@ export function HostDashboard() {
         </div>
       </header>
 
+      <AlertDialog
+        open={deleteConfirmId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmId(null);
+            setDeleteConfirmTitle("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &ldquo;{deleteConfirmTitle}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteConfirmId !== null) {
+                  deleteEvent.mutate({ id: deleteConfirmId });
+                }
+                setDeleteConfirmId(null);
+                setDeleteConfirmTitle("");
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={duplicateOpen} onOpenChange={(open) => {
         setDuplicateOpen(open);
         if (!open) {
@@ -196,6 +249,7 @@ export function HostDashboard() {
                 onChange={(e) => setDuplicateTitle(e.target.value)}
                 required
                 aria-required="true"
+                autoComplete="off"
               />
             </div>
             <div className="space-y-2">
@@ -220,7 +274,7 @@ export function HostDashboard() {
                 disabled={duplicateEventMutation.isPending || !duplicateTitle.trim()}
                 className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
-                {duplicateEventMutation.isPending ? "Duplicating..." : "Duplicate"}
+                {duplicateEventMutation.isPending ? "Duplicating…" : "Duplicate"}
               </button>
             </div>
           </form>
@@ -253,9 +307,10 @@ export function HostDashboard() {
                     id="event-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Annual Conference 2026"
+                    placeholder="Annual Conference 2026…"
                     required
                     aria-required="true"
+                    autoComplete="off"
                   />
                 </div>
 
@@ -293,7 +348,7 @@ export function HostDashboard() {
                       className="flex items-center gap-2 border border-dashed border-border rounded-lg px-4 py-3 text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                       <ImagePlus className="w-4 h-4" aria-hidden="true" />
-                      {isUploading ? "Uploading..." : "Upload logo"}
+                      {isUploading ? "Uploading…" : "Upload logo"}
                     </button>
                   )}
                 </div>
@@ -304,8 +359,9 @@ export function HostDashboard() {
                     id="promo"
                     value={promoText}
                     onChange={(e) => setPromoText(e.target.value)}
-                    placeholder="Add event details..."
+                    placeholder="Add event details…"
                     rows={3}
+                    autoComplete="off"
                   />
                 </div>
                 <div className="space-y-2">
@@ -330,7 +386,7 @@ export function HostDashboard() {
                     disabled={createEvent.isPending || !title.trim() || isUploading}
                     className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
-                    {createEvent.isPending ? "Creating..." : "Create Event"}
+                    {createEvent.isPending ? "Creating…" : "Create Event"}
                   </button>
                 </div>
               </form>
@@ -372,7 +428,7 @@ export function HostDashboard() {
                       <h3 className="font-semibold truncate">{event.title}</h3>
                       {event.startTime && (
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a")}
+                          {formatEventDate(event.startTime)}
                         </p>
                       )}
                     </div>
@@ -409,9 +465,8 @@ export function HostDashboard() {
                       aria-label={`Delete ${event.title}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Delete "${event.title}"?`)) {
-                          deleteEvent.mutate({ id: event.id });
-                        }
+                        setDeleteConfirmId(event.id);
+                        setDeleteConfirmTitle(event.title);
                       }}
                       className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
                     >

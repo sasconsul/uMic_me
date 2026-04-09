@@ -1,5 +1,5 @@
 import { useAuth } from "@clerk/react";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
 import {
   Mic,
   QrCode,
@@ -19,11 +19,6 @@ import hostPaIntegration from "@assets/Host_PA_Integration_1_1775706612952.jpeg"
 
 export function LandingPage() {
   const { isSignedIn } = useAuth();
-  const [, navigate] = useLocation();
-
-  const handleHostAction = () => {
-    navigate(isSignedIn ? "/dashboard" : "/sign-in");
-  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -34,7 +29,7 @@ export function LandingPage() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center" aria-hidden="true">
               <Radio className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span>uMic.me</span>
+            <span translate="no">uMic.me</span>
           </div>
           <nav aria-label="Site navigation" className="flex items-center gap-6">
             <Link
@@ -42,19 +37,19 @@ export function LandingPage() {
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
             >Experience uMic.me</Link>
             {isSignedIn ? (
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="border border-input bg-background px-4 py-2 rounded-lg font-semibold text-sm shadow-sm hover:shadow transition-all hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              <Link
+                href="/dashboard"
+                className="border border-input bg-background px-4 py-2 rounded-lg font-semibold text-sm shadow-sm hover:shadow transition-[background-color,box-shadow] hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Dashboard
-              </button>
+              </Link>
             ) : (
-              <button
-                onClick={() => navigate("/sign-in")}
-                className="border border-input bg-background px-4 py-2 rounded-lg font-semibold text-sm shadow-sm hover:shadow transition-all hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              <Link
+                href="/sign-in"
+                className="border border-input bg-background px-4 py-2 rounded-lg font-semibold text-sm shadow-sm hover:shadow transition-[background-color,box-shadow] hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 Sign in
-              </button>
+              </Link>
             )}
           </nav>
         </div>
@@ -64,11 +59,11 @@ export function LandingPage() {
         {/* ── Hero ── */}
         <section className="max-w-6xl mx-auto px-6 py-24 md:py-32 flex flex-col items-center text-center space-y-8">
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium" aria-hidden="true">
-            <Radio className="w-4 h-4 animate-pulse" aria-hidden="true" />
+            <Radio className="w-4 h-4 motion-safe:animate-pulse" aria-hidden="true" />
             Live Audio Broadcasting
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl leading-tight">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl leading-tight text-balance">
             Stream audio to{" "}
             <span className="text-primary underline decoration-primary/30 underline-offset-8">every seat</span>{" "}
             in the room
@@ -80,13 +75,13 @@ export function LandingPage() {
 
           <div className="flex flex-col items-center w-full max-w-md pt-2">
             <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-              <button
-                onClick={handleHostAction}
-                className="group inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              <Link
+                href={isSignedIn ? "/dashboard" : "/sign-in"}
+                className="group inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-xl font-bold text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 transition-[transform,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               >
                 {isSignedIn ? "Go to Dashboard" : "Host an Event"}
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
-              </button>
+              </Link>
               <Link
                 href="/demos"
                 className="group inline-flex items-center justify-center border-2 border-input bg-background px-8 py-4 rounded-xl font-semibold text-base hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -118,9 +113,15 @@ export function LandingPage() {
                 { img: panel3, alt: "Attendees in seats listening to audio through headphones", icon: Radio, title: "Crystal-Clear Audio", desc: "Listen through personal headphones via low-latency WebRTC streaming, perfect for translation or accessibility." },
                 { img: panel4, alt: "Host managing Q&A queue during a live event", icon: Users, title: "Interactive Q&A", desc: "Raise your digital hand to join the speaker queue. The host manages who speaks and when." },
               ].map(({ img, alt, icon: Icon, title, desc }) => (
-                <div key={title} role="listitem" className="flex flex-col rounded-xl overflow-hidden border-2 border-transparent hover:border-primary/20 hover:shadow-lg transition-all group bg-card">
+                <div key={title} role="listitem" className="flex flex-col rounded-xl overflow-hidden border-2 border-transparent hover:border-primary/20 hover:shadow-lg transition-[border-color,box-shadow] group bg-card">
                   <div className="aspect-[4/3] overflow-hidden">
-                    <img src={img} alt={alt} className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" />
+                    <img
+                      src={img}
+                      alt={alt}
+                      width={800}
+                      height={600}
+                      className="w-full h-full object-cover object-top motion-safe:group-hover:scale-105 transition-transform duration-500"
+                    />
                   </div>
                   <div className="p-6 space-y-3 flex-1">
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary" aria-hidden="true">
@@ -161,9 +162,15 @@ export function LandingPage() {
                 { img: hostPrintFlyer, alt: "Branded QR code flyer being printed at a venue", icon: Printer, title: "Printable Flyers", desc: "Generate and print branded table tents and flyers with your event's QR code built right in." },
                 { img: hostPaIntegration, alt: "PA integration — streaming audio to a room speaker system", icon: Mic, title: "PA System Integration", desc: "Simultaneously stream to your PA system and all attendee devices with a single broadcast." },
               ].map(({ img, alt, icon: Icon, title, desc }) => (
-                <div key={title} role="listitem" className="flex flex-col rounded-xl overflow-hidden border-2 border-transparent hover:border-primary/20 hover:shadow-lg transition-all group bg-card">
+                <div key={title} role="listitem" className="flex flex-col rounded-xl overflow-hidden border-2 border-transparent hover:border-primary/20 hover:shadow-lg transition-[border-color,box-shadow] group bg-card">
                   <div className="aspect-[1024/825] overflow-hidden bg-background flex items-center justify-center">
-                    <img src={img} alt={alt} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                    <img
+                      src={img}
+                      alt={alt}
+                      width={1024}
+                      height={825}
+                      className="w-full h-full object-contain motion-safe:group-hover:scale-105 transition-transform duration-500"
+                    />
                   </div>
                   <div className="p-6 space-y-3 flex-1">
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary" aria-hidden="true">
@@ -177,13 +184,13 @@ export function LandingPage() {
             </div>
 
             <div className="mt-12 flex justify-center">
-              <button
-                onClick={handleHostAction}
+              <Link
+                href={isSignedIn ? "/dashboard" : "/sign-in"}
                 className="group inline-flex items-center text-primary font-semibold text-base hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
               >
                 {isSignedIn ? "Go to your dashboard" : "Get started as a host"}
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
-              </button>
+              </Link>
             </div>
           </div>
         </section>
@@ -193,7 +200,7 @@ export function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-2 font-bold text-lg text-foreground">
             <Mic className="h-5 w-5" aria-hidden="true" />
-            <span>uMic.me</span>
+            <span translate="no">uMic.me</span>
           </div>
           <p className="text-sm">© {new Date().getFullYear()} uMic.me. All rights reserved.</p>
         </div>
