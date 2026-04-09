@@ -136,8 +136,8 @@ export default function Slide02Origin() {
             }}
           >
             We've all been there — stuck in the back row of a massive hall,
-            straining to hear a keynote, or losing our voices trying to connect
-            at a loud mixer.
+            straining to hear a keynote, or losing our voices trying to be
+            heard during Q&amp;A.
           </p>
 
           {/* Mission statement */}
