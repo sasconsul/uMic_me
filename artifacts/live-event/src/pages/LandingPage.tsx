@@ -78,7 +78,14 @@ export function LandingPage() {
 
         <section className="mt-24 max-w-5xl w-full">
           <h2 className="text-2xl font-bold mb-6 text-left">For the Audience</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" role="list" aria-label="Platform features">
+
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
+            <img src={panel2} alt="Scanning QR code" className="rounded-xl object-contain w-full md:w-1/3" />
+            <img src={panel3} alt="Listening in seats" className="rounded-xl object-contain w-full md:w-1/3" />
+            <img src={panel4} alt="Q&A begins" className="rounded-xl object-contain w-full md:w-1/3" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16" role="list" aria-label="Platform features">
             {[
               {
                 icon: QrCode,
@@ -108,14 +115,6 @@ export function LandingPage() {
                 <p className="text-sm text-muted-foreground">{desc}</p>
               </div>
             ))}
-          </div>
-
-          <div className="mt-16">
-            <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
-              <img src={panel2} alt="Scanning QR code" className="rounded-xl object-contain w-full md:w-1/3" />
-              <img src={panel3} alt="Listening in seats" className="rounded-xl object-contain w-full md:w-1/3" />
-              <img src={panel4} alt="Q&A begins" className="rounded-xl object-contain w-full md:w-1/3" />
-            </div>
           </div>
         </section>
 
