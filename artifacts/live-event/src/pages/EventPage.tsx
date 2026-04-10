@@ -957,7 +957,7 @@ export function EventPage({ eventId }: EventPageProps) {
                         onClick={() => { setSaveSetOpen((v) => { if (!v) loadSavedSets(); return !v; }); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                       >
-                        <Save className="w-3 h-3" aria-hidden="true" /> Save to Set
+                        <Save className="w-3 h-3" aria-hidden="true" /> Save to Poll Set
                       </button>
                       <button
                         type="button"
