@@ -9,6 +9,8 @@ interface UseWebSocketOptions {
   attendeeName?: string | null;
   attendeeToken?: string | null;
   onMessage: (msg: WsMessage) => void;
+  /** Host only: called each time a WS connection opens to get a fresh Clerk JWT */
+  getHostToken?: () => Promise<string | null>;
 }
 
 const RECONNECT_DELAY_MS = 2_000;
@@ -21,11 +23,14 @@ export function useWebSocket({
   attendeeName,
   attendeeToken,
   onMessage,
+  getHostToken,
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+  const getHostTokenRef = useRef(getHostToken);
+  getHostTokenRef.current = getHostToken;
 
   const reconnectDelay = useRef(RECONNECT_DELAY_MS);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,12 +50,13 @@ export function useWebSocket({
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         if (destroyed.current) { ws.close(); return; }
         reconnectDelay.current = RECONNECT_DELAY_MS;
         setConnected(true);
         if (role === "host") {
-          ws.send(JSON.stringify({ type: "join-host", eventId }));
+          const token = getHostTokenRef.current ? await getHostTokenRef.current() : null;
+          ws.send(JSON.stringify({ type: "join-host", eventId, token }));
         } else {
           ws.send(
             JSON.stringify({ type: "join-attendee", eventId, attendeeId, attendeeName, attendeeToken }),

@@ -65,7 +65,9 @@ export function AttendeePage() {
   const [directedResponseSent, setDirectedResponseSent] = useState(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
+    const stored =
+      localStorage.getItem(`event-join-${attendeeId}`) ??
+      sessionStorage.getItem(`event-join-${attendeeId}`);
     if (stored) {
       const data = JSON.parse(stored) as StoredJoinData;
       setEventId(data.eventId);
@@ -78,7 +80,9 @@ export function AttendeePage() {
       if (data.assignedId !== undefined) setAssignedId(data.assignedId);
     }
     if (token) setQrToken(token);
-    const alreadySubmitted = sessionStorage.getItem(`feedback-submitted-${attendeeId}`) === "true";
+    const alreadySubmitted =
+      (localStorage.getItem(`feedback-submitted-${attendeeId}`) ??
+        sessionStorage.getItem(`feedback-submitted-${attendeeId}`)) === "true";
     if (alreadySubmitted) setFeedbackSubmitted(true);
   }, [attendeeId, token]);
 
@@ -300,7 +304,7 @@ export function AttendeePage() {
       if (res.status === 429) {
         toast.error("You've already submitted feedback for this event.");
         setFeedbackSubmitted(true);
-        sessionStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
+        localStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
         return;
       }
       if (!res.ok) {
@@ -308,7 +312,7 @@ export function AttendeePage() {
         return;
       }
       setFeedbackSubmitted(true);
-      sessionStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
+      localStorage.setItem(`feedback-submitted-${attendeeId}`, "true");
     } catch {
       toast.error("Failed to submit feedback. Please try again.");
     } finally {

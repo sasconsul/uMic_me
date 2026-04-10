@@ -15,7 +15,7 @@ export function JoinPage() {
     mutation: {
       onSuccess: (data) => {
         const { attendee, event, sessionToken } = data;
-        sessionStorage.setItem(
+        localStorage.setItem(
           `event-join-${attendee.id}`,
           JSON.stringify({
             eventId: event.id,

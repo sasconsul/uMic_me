@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/react";
 import { useLocation } from "wouter";
 import {
   useGetEvent,
@@ -72,6 +73,7 @@ interface EventPageProps {
 }
 
 export function EventPage({ eventId }: EventPageProps) {
+  const { getToken } = useAuth();
   const [, navigate] = useLocation();
   const [liveAttendees, setLiveAttendees] = useState<LiveAttendee[]>([]);
   const [showQr, setShowQr] = useState(false);
@@ -366,6 +368,7 @@ export function EventPage({ eventId }: EventPageProps) {
     eventId,
     role: "host",
     onMessage: handleWsMessage,
+    getHostToken: getToken,
   });
 
   const {

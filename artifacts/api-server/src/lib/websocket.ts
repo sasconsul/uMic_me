@@ -272,10 +272,36 @@ export function setupWebSocketServer(server: Server) {
       }
 
       const type = msg.type as string;
+      logger.info({ type, sessionUserId: sessionUserId ?? "(none)" }, "WS message received");
 
       switch (type) {
         case "join-host": {
-          if (!sessionUserId) {
+          // Prefer cookie-based Clerk auth; fall back to explicit JWT token
+          // sent in the message (needed when the proxy strips cookies on WS upgrades).
+          let resolvedUserId = sessionUserId;
+          if (!resolvedUserId && msg.token) {
+            try {
+              const clerkClient = createClerkClient({
+                secretKey: process.env.CLERK_SECRET_KEY,
+                publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+              });
+              const tokenReq = new Request("http://localhost/", {
+                headers: { Authorization: `Bearer ${msg.token as string}` },
+              });
+              const tokenResult = await clerkClient.authenticateRequest(tokenReq, {
+                secretKey: process.env.CLERK_SECRET_KEY,
+                publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+              });
+              if (tokenResult.isSignedIn) {
+                const auth = tokenResult.toAuth();
+                resolvedUserId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
+              }
+            } catch (e) {
+              logger.warn({ err: e }, "join-host token verification failed");
+            }
+          }
+          if (!resolvedUserId) {
+            logger.warn("join-host rejected: no sessionUserId (Clerk auth failed or unauthenticated)");
             ws.send(JSON.stringify({ type: "error", message: "Unauthorized" }));
             return;
           }
@@ -286,32 +312,34 @@ export function setupWebSocketServer(server: Server) {
           const [event] = await db
             .select({ id: eventsTable.id, hostUserId: eventsTable.hostUserId })
             .from(eventsTable)
-            .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, sessionUserId)));
+            .where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, resolvedUserId)));
 
           if (!event) {
+            logger.warn({ eventId, resolvedUserId }, "join-host rejected: not event owner");
             ws.send(JSON.stringify({ type: "error", message: "Forbidden: not event owner" }));
             return;
           }
+          logger.info({ eventId, resolvedUserId }, "join-host accepted");
 
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false };
+            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false };
             rooms.set(eventId, room);
-          } else if (room.hostUserId !== "" && room.hostUserId !== sessionUserId) {
+          } else if (room.hostUserId !== "" && room.hostUserId !== resolvedUserId) {
             // Another verified host already owns this room
             ws.send(JSON.stringify({ type: "error", message: "Forbidden" }));
             return;
           } else {
             // Attendees may have created the room before host arrived (hostUserId: "")
             // or this is the same host reconnecting
-            room.hostUserId = sessionUserId;
+            room.hostUserId = resolvedUserId;
           }
 
           currentRoom = room;
           currentRole = "host";
           currentRoom.hostWs = ws;
-          currentRoom.clients.set(ws, { ws, role: "host", hostUserId: sessionUserId });
+          currentRoom.clients.set(ws, { ws, role: "host", hostUserId: resolvedUserId });
           ws.send(JSON.stringify({
             type: "room-state",
             attendees: getAttendeeList(currentRoom),
@@ -331,6 +359,7 @@ export function setupWebSocketServer(server: Server) {
           const attendeeToken = msg.attendeeToken as string | undefined;
 
           if (!eventId || !attendeeId || !attendeeToken) {
+            logger.warn({ eventId, attendeeId }, "join-attendee rejected: missing credentials");
             ws.send(JSON.stringify({ type: "error", message: "Missing attendee credentials" }));
             return;
           }
@@ -342,9 +371,11 @@ export function setupWebSocketServer(server: Server) {
             .where(and(eq(attendeesTable.id, attendeeId), eq(attendeesTable.eventId, eventId)));
 
           if (!attendee || attendee.sessionToken !== attendeeToken) {
+            logger.warn({ eventId, attendeeId }, "join-attendee rejected: invalid token");
             ws.send(JSON.stringify({ type: "error", message: "Invalid attendee credentials" }));
             return;
           }
+          logger.info({ eventId, attendeeId }, "join-attendee accepted");
 
           // Reject if event is closed
           const [event] = await db
