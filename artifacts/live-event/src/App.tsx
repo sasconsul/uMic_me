@@ -12,6 +12,7 @@ import { JoinPage } from "@/pages/JoinPage";
 import { AttendeePage } from "@/pages/AttendeePage";
 import { DemosPage } from "@/pages/DemosPage";
 import { PollSetsPage } from "@/pages/PollSetsPage";
+import { PollSetPreviewPage } from "@/pages/PollSetPreviewPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const PaSourcePage = lazy(() =>
@@ -106,6 +107,7 @@ function AppRouter() {
           <PollSetsPage />
         </ProtectedRoute>
       </Route>
+      <Route path="/poll-sets/share/:token" component={PollSetPreviewPage} />
       <Route path="/join/:token" component={JoinPage} />
       <Route path="/attend/:token/:attendeeId" component={AttendeePage} />
       <Route path="/pa-source/:eventId/:token">

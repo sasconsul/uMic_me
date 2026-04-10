@@ -12,6 +12,8 @@ import {
   Pencil,
   Check,
   X,
+  Share2,
+  Link2Off,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +30,7 @@ interface PollSet {
   id: number;
   hostUserId: string;
   title: string;
+  shareToken: string | null;
   createdAt: string;
 }
 
@@ -164,6 +167,9 @@ function PollSetCard({
   const [deleting, setDeleting] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(initialSet.shareToken);
+  const [sharing, setSharing] = useState(false);
+  const [revoking, setRevoking] = useState(false);
 
   const loadQuestions = useCallback(async () => {
     if (loadedQuestions) return;
@@ -245,6 +251,46 @@ function PollSetCard({
     }
   };
 
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const data = await apiFetch<{ shareToken: string }>(`/api/poll-sets/${initialSet.id}/share`, { method: "POST" });
+      setShareToken(data.shareToken);
+      const url = `${window.location.origin}/poll-sets/share/${data.shareToken}`;
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied to clipboard");
+    } catch {
+      toast.error("Failed to generate share link");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareToken) return;
+    const url = `${window.location.origin}/poll-sets/share/${shareToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!confirm("Revoke the share link? Anyone who has it will no longer be able to view this set.")) return;
+    setRevoking(true);
+    try {
+      await apiFetch(`/api/poll-sets/${initialSet.id}/share`, { method: "DELETE" });
+      setShareToken(null);
+      toast.success("Share link revoked");
+    } catch {
+      toast.error("Failed to revoke link");
+    } finally {
+      setRevoking(false);
+    }
+  };
+
   const handleAddQuestion = async (q: string, opts: string[]) => {
     const data = await apiFetch<{ question: PollQuestion }>(`/api/poll-sets/${initialSet.id}/questions`, {
       method: "POST",
@@ -311,6 +357,14 @@ function PollSetCard({
             <button onClick={() => setEditingTitle(true)} title="Edit title" aria-label="Edit poll set title" className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><Pencil className="w-3.5 h-3.5" /></button>
           )}
           <button onClick={handleDownloadCsv} disabled={downloading} title="Download results CSV" aria-label="Download results as CSV" className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"><Download className="w-3.5 h-3.5" /></button>
+          {shareToken ? (
+            <>
+              <button onClick={handleCopyShareLink} title="Copy share link" aria-label="Copy share link" className="p-1.5 text-primary hover:text-primary/80 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><Share2 className="w-3.5 h-3.5" /></button>
+              <button onClick={handleRevoke} disabled={revoking} title="Revoke share link" aria-label="Revoke share link" className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive disabled:opacity-50"><Link2Off className="w-3.5 h-3.5" /></button>
+            </>
+          ) : (
+            <button onClick={handleShare} disabled={sharing} title="Generate share link" aria-label="Generate share link" className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"><Share2 className="w-3.5 h-3.5" /></button>
+          )}
           <button onClick={handleDuplicate} disabled={duplicating} title="Duplicate" aria-label="Duplicate poll set" className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"><Copy className="w-3.5 h-3.5" /></button>
           <button onClick={handleDelete} disabled={deleting} title="Delete" aria-label="Delete poll set" className="p-1.5 text-muted-foreground hover:text-destructive transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive disabled:opacity-50"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { getAuth } from "@clerk/express";
 import { db, pollSetsTable, pollQuestionsTable, pollResponsesTable } from "@workspace/db";
 import { eq, and, asc, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
 
@@ -128,6 +129,39 @@ router.delete("/poll-sets/:id/questions/:qid", requireAuth, async (req: Request 
   if (!set) { res.status(404).json({ error: "Not found" }); return; }
   await db.delete(pollQuestionsTable).where(and(eq(pollQuestionsTable.id, qid), eq(pollQuestionsTable.pollSetId, pollSetId)));
   res.json({ success: true });
+});
+
+// Generate or return a public share token for a poll set
+router.post("/poll-sets/:id/share", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const id = Number(req.params.id);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [set] = await db.select().from(pollSetsTable).where(and(eq(pollSetsTable.id, id), eq(pollSetsTable.hostUserId, req.userId!)));
+  if (!set) { res.status(404).json({ error: "Not found" }); return; }
+  const token = set.shareToken ?? randomUUID();
+  if (!set.shareToken) {
+    await db.update(pollSetsTable).set({ shareToken: token }).where(eq(pollSetsTable.id, id));
+  }
+  res.json({ shareToken: token });
+});
+
+// Revoke a poll set's share token
+router.delete("/poll-sets/:id/share", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const id = Number(req.params.id);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [set] = await db.select().from(pollSetsTable).where(and(eq(pollSetsTable.id, id), eq(pollSetsTable.hostUserId, req.userId!)));
+  if (!set) { res.status(404).json({ error: "Not found" }); return; }
+  await db.update(pollSetsTable).set({ shareToken: null }).where(eq(pollSetsTable.id, id));
+  res.json({ success: true });
+});
+
+// Public: get a poll set by share token (no auth required)
+router.get("/poll-sets/share/:token", async (req: Request, res: Response) => {
+  const token = String(req.params.token ?? "");
+  if (!token) { res.status(400).json({ error: "Invalid token" }); return; }
+  const [set] = await db.select().from(pollSetsTable).where(eq(pollSetsTable.shareToken, token));
+  if (!set) { res.status(404).json({ error: "Not found or link revoked" }); return; }
+  const questions = await db.select().from(pollQuestionsTable).where(eq(pollQuestionsTable.pollSetId, set.id)).orderBy(asc(pollQuestionsTable.orderIndex), asc(pollQuestionsTable.createdAt));
+  res.json({ pollSet: { id: set.id, title: set.title }, questions });
 });
 
 // Download results as CSV for a poll set

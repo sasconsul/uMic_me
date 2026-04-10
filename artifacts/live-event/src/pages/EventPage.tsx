@@ -35,6 +35,15 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
+async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "Request failed" }));
+    throw new Error((body as { error?: string }).error ?? "Request failed");
+  }
+  return res.json() as Promise<T>;
+}
+
 interface LiveAttendee {
   attendeeId: number;
   attendeeName: string | null;
@@ -83,6 +92,10 @@ export function EventPage({ eventId }: EventPageProps) {
   const [loadingSets, setLoadingSets] = useState(false);
   const [pollMode, setPollMode] = useState<"adhoc" | "saved">("adhoc");
   const [selectedSetId, setSelectedSetId] = useState<number | null>(null);
+  const [saveSetOpen, setSaveSetOpen] = useState(false);
+  const [saveSetId, setSaveSetId] = useState<number | "new" | null>(null);
+  const [saveNewSetName, setSaveNewSetName] = useState("");
+  const [savingToSet, setSavingToSet] = useState(false);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -467,6 +480,44 @@ export function EventPage({ eventId }: EventPageProps) {
     setPollCreating(false);
     setPollMode("adhoc");
     setSelectedSetId(null);
+  };
+
+  const handleSaveToSet = async () => {
+    const trimmedQ = pollQuestion.trim();
+    const validOptions = pollOptions.map((o) => o.trim()).filter((o) => o.length > 0);
+    if (!trimmedQ || validOptions.length < 2) {
+      toast.error("Enter a question and at least 2 options");
+      return;
+    }
+    setSavingToSet(true);
+    try {
+      let targetSetId: number;
+      if (saveSetId === "new") {
+        const name = saveNewSetName.trim();
+        if (!name) { toast.error("Enter a name for the new poll set"); setSavingToSet(false); return; }
+        const newSet = await apiFetch<{ pollSet: { id: number } }>("/api/poll-sets", { method: "POST", body: JSON.stringify({ title: name }) });
+        targetSetId = newSet.pollSet.id;
+      } else if (typeof saveSetId === "number") {
+        targetSetId = saveSetId;
+      } else {
+        toast.error("Select a poll set");
+        setSavingToSet(false);
+        return;
+      }
+      await apiFetch(`/api/poll-sets/${targetSetId}/questions`, {
+        method: "POST",
+        body: JSON.stringify({ question: trimmedQ, options: validOptions }),
+      });
+      setSavedSets(null);
+      setSaveSetOpen(false);
+      setSaveSetId(null);
+      setSaveNewSetName("");
+      toast.success("Question saved to poll set");
+    } catch {
+      toast.error("Failed to save to poll set");
+    } finally {
+      setSavingToSet(false);
+    }
   };
 
   const handleEndPoll = () => {
@@ -891,24 +942,78 @@ export function EventPage({ eventId }: EventPageProps) {
                   <span className="text-xs text-muted-foreground">Show live results to attendees</span>
                 </label>
 
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => { setPollCreating(false); setPollQuestion(""); setPollOptions(["", ""]); setPollShowResults(false); setPollMode("adhoc"); setSelectedSetId(null); }}
+                    onClick={() => { setPollCreating(false); setPollQuestion(""); setPollOptions(["", ""]); setPollShowResults(false); setPollMode("adhoc"); setSelectedSetId(null); setSaveSetOpen(false); setSaveSetId(null); setSaveNewSetName(""); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <X className="w-3 h-3" aria-hidden="true" /> Cancel
                   </button>
                   {pollMode === "adhoc" && (
-                    <button
-                      type="button"
-                      onClick={() => handleLaunchPoll()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { setSaveSetOpen((v) => { if (!v) loadSavedSets(); return !v; }); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <Save className="w-3 h-3" aria-hidden="true" /> Save to Set
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleLaunchPoll()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
+                      </button>
+                    </>
                   )}
                 </div>
+                {pollMode === "adhoc" && saveSetOpen && (
+                  <div className="mt-2 p-3 border border-border rounded-xl bg-muted/30 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground">Save question to poll set</p>
+                    <select
+                      value={saveSetId === null ? "" : saveSetId === "new" ? "new" : String(saveSetId)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") setSaveSetId(null);
+                        else if (v === "new") setSaveSetId("new");
+                        else setSaveSetId(Number(v));
+                      }}
+                      className="w-full px-3 py-1.5 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      aria-label="Select poll set to save into"
+                    >
+                      <option value="">— Select a poll set —</option>
+                      {(savedSets ?? []).map((s) => (
+                        <option key={s.id} value={s.id}>{s.title}</option>
+                      ))}
+                      <option value="new">+ New poll set…</option>
+                    </select>
+                    {saveSetId === "new" && (
+                      <input
+                        type="text"
+                        value={saveNewSetName}
+                        onChange={(e) => setSaveNewSetName(e.target.value)}
+                        placeholder="Poll set name"
+                        maxLength={200}
+                        className="w-full px-3 py-1.5 text-xs border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setSaveSetOpen(false); setSaveSetId(null); setSaveNewSetName(""); }}
+                        className="px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >Cancel</button>
+                      <button
+                        type="button"
+                        onClick={handleSaveToSet}
+                        disabled={savingToSet || saveSetId === null}
+                        className="px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >{savingToSet ? "Saving…" : "Save"}</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

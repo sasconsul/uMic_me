@@ -5,6 +5,7 @@ export const pollSetsTable = pgTable("poll_sets", {
   id: serial("id").primaryKey(),
   hostUserId: varchar("host_user_id").notNull(),
   title: text("title").notNull(),
+  shareToken: varchar("share_token").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
