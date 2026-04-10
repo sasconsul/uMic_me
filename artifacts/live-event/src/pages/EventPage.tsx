@@ -76,6 +76,14 @@ export function EventPage({ eventId }: EventPageProps) {
   const [pollShowResults, setPollShowResults] = useState(false);
   const [pollCreating, setPollCreating] = useState(false);
 
+  // Saved poll sets for quick-launch
+  interface SavedQuestion { id: number; question: string; options: string[]; orderIndex: number; createdAt: string; pollSetId: number; }
+  interface SavedSet { id: number; title: string; questions: SavedQuestion[]; }
+  const [savedSets, setSavedSets] = useState<SavedSet[] | null>(null);
+  const [loadingSets, setLoadingSets] = useState(false);
+  const [pollMode, setPollMode] = useState<"adhoc" | "saved">("adhoc");
+  const [selectedSetId, setSelectedSetId] = useState<number | null>(null);
+
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
 
@@ -416,18 +424,49 @@ export function EventPage({ eventId }: EventPageProps) {
     }
   };
 
-  const handleLaunchPoll = () => {
+  const loadSavedSets = async () => {
+    if (savedSets !== null) return;
+    setLoadingSets(true);
+    try {
+      const res = await fetch("/api/poll-sets");
+      if (!res.ok) return;
+      const data = (await res.json()) as { pollSets: Array<{ id: number; title: string }> };
+      const sets: SavedSet[] = await Promise.all(
+        data.pollSets.map(async (s) => {
+          const r = await fetch(`/api/poll-sets/${s.id}`);
+          const d = (await r.json()) as { pollSet: { id: number; title: string }; questions: SavedQuestion[] };
+          return { id: d.pollSet.id, title: d.pollSet.title, questions: d.questions };
+        })
+      );
+      setSavedSets(sets);
+    } catch {
+      toast.error("Could not load poll sets");
+    } finally {
+      setLoadingSets(false);
+    }
+  };
+
+  const handleLaunchPoll = (pollQuestionId?: number) => {
     const trimmedQ = pollQuestion.trim();
     const validOptions = pollOptions.map((o) => o.trim()).filter((o) => o.length > 0);
     if (!trimmedQ || validOptions.length < 2) {
       toast.error("Enter a question and at least 2 options");
       return;
     }
-    send({ type: "launch-poll", question: trimmedQ, options: validOptions, showResults: pollShowResults });
+    send({ type: "launch-poll", question: trimmedQ, options: validOptions, showResults: pollShowResults, ...(pollQuestionId ? { pollQuestionId } : {}) });
     setPollCreating(false);
     setPollQuestion("");
     setPollOptions(["", ""]);
     setPollShowResults(false);
+    setPollMode("adhoc");
+    setSelectedSetId(null);
+  };
+
+  const handleLaunchSavedQuestion = (q: SavedQuestion) => {
+    send({ type: "launch-poll", question: q.question, options: q.options, showResults: pollShowResults, pollQuestionId: q.id });
+    setPollCreating(false);
+    setPollMode("adhoc");
+    setSelectedSetId(null);
   };
 
   const handleEndPoll = () => {
@@ -720,56 +759,122 @@ export function EventPage({ eventId }: EventPageProps) {
 
             {pollCreating && (
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <label htmlFor="poll-question" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
-                  <input
-                    id="poll-question"
-                    type="text"
-                    value={pollQuestion}
-                    onChange={(e) => setPollQuestion(e.target.value)}
-                    placeholder="What do you want to ask?"
-                    maxLength={300}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
-                  />
+                {/* Mode tabs */}
+                <div className="flex rounded-lg border border-border overflow-hidden text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setPollMode("adhoc")}
+                    className={`flex-1 py-1.5 transition-colors focus-visible:outline-none ${pollMode === "adhoc" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}
+                  >
+                    New Question
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPollMode("saved"); void loadSavedSets(); }}
+                    className={`flex-1 py-1.5 transition-colors focus-visible:outline-none ${pollMode === "saved" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}
+                  >
+                    From Poll Set
+                  </button>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</label>
-                  {pollOptions.map((opt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
+
+                {pollMode === "adhoc" && (
+                  <>
+                    <div className="space-y-1">
+                      <label htmlFor="poll-question" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
                       <input
+                        id="poll-question"
                         type="text"
-                        value={opt}
-                        onChange={(e) => {
-                          const next = [...pollOptions];
-                          next[idx] = e.target.value;
-                          setPollOptions(next);
-                        }}
-                        placeholder={`Option ${idx + 1}`}
-                        maxLength={200}
-                        className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={pollQuestion}
+                        onChange={(e) => setPollQuestion(e.target.value)}
+                        placeholder="What do you want to ask?"
+                        maxLength={300}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
                       />
-                      {pollOptions.length > 2 && (
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</label>
+                      {pollOptions.map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={opt}
+                            onChange={(e) => {
+                              const next = [...pollOptions];
+                              next[idx] = e.target.value;
+                              setPollOptions(next);
+                            }}
+                            placeholder={`Option ${idx + 1}`}
+                            maxLength={200}
+                            className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          {pollOptions.length > 2 && (
+                            <button
+                              type="button"
+                              aria-label={`Remove option ${idx + 1}`}
+                              onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
+                              className="text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 rounded"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {pollOptions.length < 10 && (
                         <button
                           type="button"
-                          aria-label={`Remove option ${idx + 1}`}
-                          onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
-                          className="text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 rounded"
+                          onClick={() => setPollOptions([...pollOptions, ""])}
+                          className="text-xs text-primary hover:underline flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
                         >
-                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <Plus className="w-3 h-3" aria-hidden="true" /> Add option
                         </button>
                       )}
                     </div>
-                  ))}
-                  {pollOptions.length < 10 && (
-                    <button
-                      type="button"
-                      onClick={() => setPollOptions([...pollOptions, ""])}
-                      className="text-xs text-primary hover:underline flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
-                    >
-                      <Plus className="w-3 h-3" aria-hidden="true" /> Add option
-                    </button>
-                  )}
-                </div>
+                  </>
+                )}
+
+                {pollMode === "saved" && (
+                  <div className="space-y-2">
+                    {loadingSets ? (
+                      <p className="text-xs text-muted-foreground py-2">Loading poll sets…</p>
+                    ) : savedSets !== null && savedSets.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">No poll sets yet. Create one from the dashboard.</p>
+                    ) : (
+                      <>
+                        <select
+                          value={selectedSetId ?? ""}
+                          onChange={(e) => setSelectedSetId(e.target.value ? Number(e.target.value) : null)}
+                          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                          aria-label="Select poll set"
+                        >
+                          <option value="">— Select a poll set —</option>
+                          {(savedSets ?? []).map((s) => (
+                            <option key={s.id} value={s.id}>{s.title}</option>
+                          ))}
+                        </select>
+                        {selectedSetId && (
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {(savedSets ?? []).find((s) => s.id === selectedSetId)?.questions.map((q) => (
+                              <button
+                                key={q.id}
+                                type="button"
+                                onClick={() => handleLaunchSavedQuestion(q)}
+                                className="w-full text-left px-3 py-2.5 text-sm rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary space-y-0.5"
+                              >
+                                <p className="font-medium truncate">{q.question}</p>
+                                <p className="text-xs text-muted-foreground truncate">{q.options.join(" · ")}</p>
+                              </button>
+                            ))}
+                            {((savedSets ?? []).find((s) => s.id === selectedSetId)?.questions ?? []).length === 0 && (
+                              <p className="text-xs text-muted-foreground px-1">This set has no questions yet.</p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Show results toggle (applies to both modes) */}
                 <label className="flex items-center gap-3 cursor-pointer select-none" htmlFor="poll-show-results">
                   <div
                     id="poll-show-results"
@@ -785,21 +890,24 @@ export function EventPage({ eventId }: EventPageProps) {
                   </div>
                   <span className="text-xs text-muted-foreground">Show live results to attendees</span>
                 </label>
+
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => { setPollCreating(false); setPollQuestion(""); setPollOptions(["", ""]); setPollShowResults(false); }}
+                    onClick={() => { setPollCreating(false); setPollQuestion(""); setPollOptions(["", ""]); setPollShowResults(false); setPollMode("adhoc"); setSelectedSetId(null); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <X className="w-3 h-3" aria-hidden="true" /> Cancel
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleLaunchPoll}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
-                  </button>
+                  {pollMode === "adhoc" && (
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchPoll()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
+                    </button>
+                  )}
                 </div>
               </div>
             )}

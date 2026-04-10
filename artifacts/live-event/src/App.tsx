@@ -11,6 +11,7 @@ import { PrintFlyerPage } from "@/pages/PrintFlyerPage";
 import { JoinPage } from "@/pages/JoinPage";
 import { AttendeePage } from "@/pages/AttendeePage";
 import { DemosPage } from "@/pages/DemosPage";
+import { PollSetsPage } from "@/pages/PollSetsPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const PaSourcePage = lazy(() =>
@@ -99,6 +100,11 @@ function AppRouter() {
             <PrintFlyerPage eventId={Number(params.id)} />
           </ProtectedRoute>
         )}
+      </Route>
+      <Route path="/poll-sets">
+        <ProtectedRoute>
+          <PollSetsPage />
+        </ProtectedRoute>
       </Route>
       <Route path="/join/:token" component={JoinPage} />
       <Route path="/attend/:token/:attendeeId" component={AttendeePage} />

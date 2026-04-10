@@ -4,7 +4,7 @@ import type { Server } from "http";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
 import { createClerkClient } from "@clerk/express";
-import { db, eventsTable, attendeesTable } from "@workspace/db";
+import { db, eventsTable, attendeesTable, pollResponsesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 interface RoomClient {
@@ -21,10 +21,14 @@ interface RoomClient {
 
 interface Poll {
   id: string;
+  /** DB id of the poll_questions row, if launched from a saved question set */
+  pollQuestionId?: number;
   question: string;
   options: string[];
   /** attendeeId → option index */
   votes: Map<number, number>;
+  /** attendeeId → attendee display name (for CSV export) */
+  attendeeNames: Map<number, string | null>;
   /** Whether attendees can see the live tally */
   showResults: boolean;
   active: boolean;
@@ -433,9 +437,11 @@ export function setupWebSocketServer(server: Server) {
           if (!question || options.length < 2) return;
           const poll: Poll = {
             id: randomUUID(),
+            pollQuestionId: typeof msg.pollQuestionId === "number" ? msg.pollQuestionId : undefined,
             question,
             options,
             votes: new Map(),
+            attendeeNames: new Map(),
             showResults: Boolean(msg.showResults),
             active: true,
           };
@@ -451,10 +457,24 @@ export function setupWebSocketServer(server: Server) {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           if (!currentRoom.activePoll) return;
           currentRoom.activePoll.active = false;
+          const endedPoll = currentRoom.activePoll;
           broadcastToRoom(currentRoom, {
             type: "poll-ended",
-            poll: getPollSnapshot(currentRoom.activePoll, "attendee"),
+            poll: getPollSnapshot(endedPoll, "attendee"),
           });
+          // Persist results if this was a saved question
+          if (endedPoll.pollQuestionId && endedPoll.votes.size > 0) {
+            const rows = Array.from(endedPoll.votes.entries()).map(([attendeeId, optionIndex]) => ({
+              pollQuestionId: endedPoll.pollQuestionId!,
+              eventId: currentRoom!.eventId,
+              attendeeId,
+              attendeeName: endedPoll.attendeeNames.get(attendeeId) ?? null,
+              optionIndex,
+            }));
+            db.insert(pollResponsesTable).values(rows).catch((err) => {
+              logger.error({ err }, "Failed to save poll responses");
+            });
+          }
           break;
         }
 
@@ -479,6 +499,9 @@ export function setupWebSocketServer(server: Server) {
           const optionIndex = Number(msg.optionIndex);
           if (isNaN(optionIndex) || optionIndex < 0 || optionIndex >= poll.options.length) return;
           poll.votes.set(currentAttendeeId, optionIndex);
+          // Record attendee name for CSV export
+          const voter = currentRoom.clients.get(ws);
+          if (voter) poll.attendeeNames.set(currentAttendeeId, voter.attendeeName ?? null);
           // Confirm vote to voter
           ws.send(JSON.stringify({ type: "poll-vote-confirmed", optionIndex }));
           // Broadcast updated tally to host and to attendees if showResults

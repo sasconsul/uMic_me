@@ -15,6 +15,7 @@ import {
   ImagePlus,
   X,
   Copy,
+  BarChart2,
 } from "lucide-react";
 import {
   Dialog,
@@ -184,6 +185,13 @@ export function HostDashboard() {
           <span className="text-sm text-muted-foreground hidden sm:block" aria-hidden="true">
             {user?.firstName} {user?.lastName}
           </span>
+          <button
+            onClick={() => navigate("/poll-sets")}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+          >
+            <BarChart2 className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Poll Sets</span>
+          </button>
           <button
             onClick={() => signOut()}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
