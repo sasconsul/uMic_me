@@ -53,6 +53,8 @@ interface Room {
   qaOpen: boolean;
   /** When true, attendees' mics start muted when called on; host must send unmute-speaker */
   muteUntilCalled: boolean;
+  /** Whether the host is currently broadcasting audio */
+  isBroadcasting: boolean;
   /** Current active poll, if any */
   activePoll?: Poll;
   /** Current active directed (open-ended) question, if any */
@@ -294,7 +296,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false };
+            room = { eventId, hostUserId: sessionUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== sessionUserId) {
             // Another verified host already owns this room
@@ -358,7 +360,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false };
             rooms.set(eventId, room);
           }
 
@@ -377,6 +379,9 @@ export function setupWebSocketServer(server: Server) {
           }
           if (currentRoom.activeDirectedQuestion) {
             ws.send(JSON.stringify({ type: "directed-question", text: currentRoom.activeDirectedQuestion.text }));
+          }
+          if (currentRoom.isBroadcasting) {
+            ws.send(JSON.stringify({ type: "stream-available" }));
           }
           sendToHost(currentRoom, { type: "attendee-joined", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           break;
@@ -430,12 +435,14 @@ export function setupWebSocketServer(server: Server) {
 
         case "start-broadcast": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          currentRoom.isBroadcasting = true;
           broadcastToAttendees(currentRoom, { type: "stream-available" });
           break;
         }
 
         case "stop-broadcast": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          currentRoom.isBroadcasting = false;
           broadcastToAttendees(currentRoom, { type: "stream-ended" });
           break;
         }
@@ -669,7 +676,7 @@ export function setupWebSocketServer(server: Server) {
 
           let room = rooms.get(eventId);
           if (!room) {
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false };
             rooms.set(eventId, room);
           }
 
