@@ -59,6 +59,11 @@ export function AttendeePage() {
   const [activePoll, setActivePoll] = useState<PollSnapshot | null>(null);
   const [myVote, setMyVote] = useState<number | null>(null);
 
+  // Directed (open-ended) question state
+  const [directedQuestion, setDirectedQuestion] = useState<string | null>(null);
+  const [directedResponse, setDirectedResponse] = useState("");
+  const [directedResponseSent, setDirectedResponseSent] = useState(false);
+
   useEffect(() => {
     const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
     if (stored) {
@@ -164,6 +169,24 @@ export function AttendeePage() {
           setMyVote(optionIndex);
           break;
         }
+        case "directed-question": {
+          const { text } = msg as { text: string };
+          setDirectedQuestion(text);
+          setDirectedResponse("");
+          setDirectedResponseSent(false);
+          toast.info("The host asked you a question!");
+          break;
+        }
+        case "directed-question-dismissed": {
+          setDirectedQuestion(null);
+          setDirectedResponse("");
+          setDirectedResponseSent(false);
+          break;
+        }
+        case "question-response-confirmed": {
+          setDirectedResponseSent(true);
+          break;
+        }
         case "stream-available":
           setStreamAvailable(true);
           break;
@@ -251,6 +274,12 @@ export function AttendeePage() {
   const handleCastVote = (optionIndex: number) => {
     if (!activePoll?.active || myVote !== null) return;
     send({ type: "cast-vote", optionIndex });
+  };
+
+  const handleSubmitDirectedResponse = () => {
+    const trimmed = directedResponse.trim();
+    if (!trimmed || directedResponseSent) return;
+    send({ type: "question-response", response: trimmed });
   };
 
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
@@ -533,6 +562,46 @@ export function AttendeePage() {
               className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p className="text-xs text-muted-foreground text-right">{questionText.length}/500</p>
+          </div>
+        )}
+
+        {directedQuestion && (
+          <div className="bg-card border border-blue-500/30 rounded-xl p-5 space-y-4 w-full text-left" role="region" aria-label="Question from host">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-blue-500 shrink-0" aria-hidden="true" />
+              <span className="font-semibold text-sm text-blue-600">Question from host</span>
+            </div>
+            <p className="text-sm font-medium">{directedQuestion}</p>
+            {directedResponseSent ? (
+              <div className="flex items-center gap-2 text-sm text-green-600 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3" role="status">
+                <CheckCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span>Response sent — thank you!</span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <textarea
+                  value={directedResponse}
+                  onChange={(e) => setDirectedResponse(e.target.value)}
+                  placeholder="Type your response…"
+                  rows={3}
+                  maxLength={1000}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-blue-500 focus-visible:ring-2 resize-none"
+                  aria-label="Your response"
+                />
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{directedResponse.length}/1000</p>
+                  <button
+                    type="button"
+                    onClick={handleSubmitDirectedResponse}
+                    disabled={!directedResponse.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    <Send className="w-3.5 h-3.5" aria-hidden="true" />
+                    Submit
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -34,6 +34,11 @@ interface Poll {
   active: boolean;
 }
 
+interface DirectedQuestion {
+  text: string;
+  responses: Array<{ attendeeId: number; attendeeName: string | null; response: string }>;
+}
+
 interface Room {
   eventId: number;
   /**
@@ -50,6 +55,8 @@ interface Room {
   muteUntilCalled: boolean;
   /** Current active poll, if any */
   activePoll?: Poll;
+  /** Current active directed (open-ended) question, if any */
+  activeDirectedQuestion?: DirectedQuestion;
 }
 
 /** In-memory store for ephemeral PA source tokens: eventId → token */
@@ -290,6 +297,9 @@ export function setupWebSocketServer(server: Server) {
             qaOpen: currentRoom.qaOpen,
             paSourceConnected: !!(currentRoom.paSourceWs && currentRoom.paSourceWs.readyState === WebSocket.OPEN),
             activePoll: currentRoom.activePoll ? getPollSnapshot(currentRoom.activePoll, "host") : null,
+            activeDirectedQuestion: currentRoom.activeDirectedQuestion
+              ? { text: currentRoom.activeDirectedQuestion.text, responses: currentRoom.activeDirectedQuestion.responses }
+              : null,
           }));
           break;
         }
@@ -345,6 +355,9 @@ export function setupWebSocketServer(server: Server) {
               poll: getPollSnapshot(currentRoom.activePoll, "attendee"),
               votedIndex: votedIndex ?? null,
             }));
+          }
+          if (currentRoom.activeDirectedQuestion) {
+            ws.send(JSON.stringify({ type: "directed-question", text: currentRoom.activeDirectedQuestion.text }));
           }
           sendToHost(currentRoom, { type: "attendee-joined", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           break;
@@ -510,6 +523,39 @@ export function setupWebSocketServer(server: Server) {
           if (poll.showResults) {
             broadcastToAttendees(currentRoom, { type: "poll-updated", poll: getPollSnapshot(poll, "attendee") });
           }
+          break;
+        }
+
+        // ─── Directed question ────────────────────────────────────────────
+        case "ask-question": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          const questionText = typeof msg.text === "string" ? msg.text.trim().slice(0, 500) : "";
+          if (!questionText) return;
+          currentRoom.activeDirectedQuestion = { text: questionText, responses: [] };
+          broadcastToAttendees(currentRoom, { type: "directed-question", text: questionText });
+          sendToHost(currentRoom, { type: "directed-question-state", text: questionText, responses: [] });
+          break;
+        }
+
+        case "question-response": {
+          if (!currentRoom || currentRole !== "attendee" || !currentAttendeeId) return;
+          const dq = currentRoom.activeDirectedQuestion;
+          if (!dq) return;
+          const response = typeof msg.response === "string" ? msg.response.trim().slice(0, 1000) : "";
+          if (!response) return;
+          const alreadyResponded = dq.responses.some((r) => r.attendeeId === currentAttendeeId);
+          if (alreadyResponded) return;
+          const responder = currentRoom.clients.get(ws);
+          dq.responses.push({ attendeeId: currentAttendeeId, attendeeName: responder?.attendeeName ?? null, response });
+          ws.send(JSON.stringify({ type: "question-response-confirmed" }));
+          sendToHost(currentRoom, { type: "directed-question-state", text: dq.text, responses: dq.responses });
+          break;
+        }
+
+        case "dismiss-question": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          currentRoom.activeDirectedQuestion = undefined;
+          broadcastToAttendees(currentRoom, { type: "directed-question-dismissed" });
           break;
         }
 

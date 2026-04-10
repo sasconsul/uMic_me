@@ -107,6 +107,14 @@ export function EventPage({ eventId }: EventPageProps) {
   const [loadingConnected, setLoadingConnected] = useState(false);
   const [managingSets, setManagingSets] = useState(false);
   const [attachingSetId, setAttachingSetId] = useState<number | null>(null);
+  // Which connected-set chips are expanded to show questions
+  const [expandedSetIds, setExpandedSetIds] = useState<Set<number>>(new Set());
+
+  // Directed (open-ended) question state
+  interface DirectedResponse { attendeeId: number; attendeeName: string | null; response: string; }
+  const [askingQuestion, setAskingQuestion] = useState(false);
+  const [directedQuestionText, setDirectedQuestionText] = useState("");
+  const [activeDirectedQuestion, setActiveDirectedQuestion] = useState<{ text: string; responses: DirectedResponse[] } | null>(null);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -241,6 +249,15 @@ export function EventPage({ eventId }: EventPageProps) {
           if (typeof msg.qaOpen === "boolean") setQaOpen(msg.qaOpen);
           if (typeof msg.paSourceConnected === "boolean") setPaSourceConnected(msg.paSourceConnected as boolean);
           if (msg.activePoll) setActivePoll(msg.activePoll as PollSnapshot);
+          if (msg.activeDirectedQuestion) {
+            setActiveDirectedQuestion(msg.activeDirectedQuestion as { text: string; responses: DirectedResponse[] });
+          }
+          break;
+        }
+
+        case "directed-question-state": {
+          const { text, responses } = msg as { text: string; responses: DirectedResponse[] };
+          setActiveDirectedQuestion({ text, responses });
           break;
         }
 
@@ -579,6 +596,28 @@ export function EventPage({ eventId }: EventPageProps) {
     send({ type: "end-poll" });
   };
 
+  const handleAskQuestion = () => {
+    const text = directedQuestionText.trim();
+    if (!text) { toast.error("Enter a question to ask"); return; }
+    send({ type: "ask-question", text });
+    setAskingQuestion(false);
+    setDirectedQuestionText("");
+  };
+
+  const handleDismissQuestion = () => {
+    send({ type: "dismiss-question" });
+    setActiveDirectedQuestion(null);
+  };
+
+  const toggleExpandedSet = (setId: number) => {
+    setExpandedSetIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(setId)) next.delete(setId);
+      else next.add(setId);
+      return next;
+    });
+  };
+
   const handleTogglePollResults = () => {
     if (!activePoll) return;
     send({ type: "toggle-poll-results", showResults: !activePoll.showResults });
@@ -844,24 +883,102 @@ export function EventPage({ eventId }: EventPageProps) {
 
           {/* ─── Polls panel ─────────────────────────────────────────────── */}
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <h2 className="font-semibold flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-primary" aria-hidden="true" />
                 Polls
                 {activePoll && activePoll.active && (
                   <span className="ml-1 text-xs bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">Live</span>
                 )}
+                {activeDirectedQuestion && (
+                  <span className="ml-1 text-xs bg-blue-500/10 text-blue-600 border border-blue-500/20 px-2 py-0.5 rounded-full font-medium">Question Live</span>
+                )}
               </h2>
-              {!activePoll?.active && !pollCreating && (
-                <button
-                  onClick={() => setPollCreating(true)}
-                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                  New Poll
-                </button>
+              {!activePoll?.active && !pollCreating && !askingQuestion && !activeDirectedQuestion && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setAskingQuestion(true)}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+                    Ask Question
+                  </button>
+                  <button
+                    onClick={() => setPollCreating(true)}
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                    New Poll
+                  </button>
+                </div>
               )}
             </div>
+
+            {/* Active directed question view (host) */}
+            {activeDirectedQuestion && !pollCreating && (
+              <div className="space-y-3 border border-blue-500/20 rounded-xl p-4 bg-blue-500/5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Open Question (live)</p>
+                    <p className="text-sm font-medium">{activeDirectedQuestion.text}</p>
+                  </div>
+                  <button
+                    onClick={handleDismissQuestion}
+                    className="shrink-0 text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg font-medium hover:bg-destructive/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                  >
+                    Close Question
+                  </button>
+                </div>
+                <div aria-live="polite" aria-atomic="false">
+                  <p className="text-xs text-muted-foreground font-medium mb-2">{activeDirectedQuestion.responses.length} response{activeDirectedQuestion.responses.length !== 1 ? "s" : ""}</p>
+                  {activeDirectedQuestion.responses.length > 0 ? (
+                    <ul className="space-y-2 max-h-48 overflow-y-auto">
+                      {activeDirectedQuestion.responses.map((r, i) => (
+                        <li key={i} className="bg-background border border-border rounded-lg px-3 py-2.5 space-y-0.5">
+                          <p className="text-xs font-semibold text-muted-foreground">{r.attendeeName ?? `Attendee #${r.attendeeId}`}</p>
+                          <p className="text-sm">{r.response}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Waiting for attendees to respond…</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Ask question form */}
+            {askingQuestion && !activeDirectedQuestion && (
+              <div className="space-y-3 border border-border rounded-xl p-4 bg-muted/20">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ask an Open Question</p>
+                <textarea
+                  value={directedQuestionText}
+                  onChange={(e) => setDirectedQuestionText(e.target.value)}
+                  placeholder="Type your question for attendees…"
+                  rows={3}
+                  maxLength={500}
+                  autoFocus
+                  className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setAskingQuestion(false); setDirectedQuestionText(""); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <X className="w-3 h-3" aria-hidden="true" /> Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAskQuestion}
+                    disabled={!directedQuestionText.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  >
+                    <MessageSquare className="w-3 h-3" aria-hidden="true" /> Ask
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Connected poll sets */}
             {!pollCreating && !activePoll?.active && (
@@ -888,20 +1005,54 @@ export function EventPage({ eventId }: EventPageProps) {
                 ) : connectedSets !== null && connectedSets.length === 0 && !managingSets ? (
                   <p className="text-xs text-muted-foreground">No poll sets connected. Click Manage to add some.</p>
                 ) : connectedSets !== null && connectedSets.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-2">
                     {connectedSets.map((s) => (
-                      <div key={s.id} className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 text-xs font-medium">
-                        <span className="truncate max-w-[150px]">{s.title}</span>
-                        <span className="text-primary/60 ml-1">{s.questions.length}q</span>
-                        <button
-                          type="button"
-                          onClick={() => handleDetachSet(s.id)}
-                          aria-label={`Disconnect ${s.title}`}
-                          title={`Disconnect "${s.title}" from this event`}
-                          className="ml-1 text-primary/60 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded-full"
-                        >
-                          <X className="w-3 h-3" aria-hidden="true" />
-                        </button>
+                      <div key={s.id} className="border border-primary/20 rounded-xl bg-primary/5 overflow-hidden">
+                        <div className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpandedSet(s.id)}
+                            aria-expanded={expandedSetIds.has(s.id)}
+                            className="flex items-center gap-1.5 flex-1 min-w-0 text-primary hover:text-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded text-left"
+                          >
+                            {expandedSetIds.has(s.id) ? <ChevronUp className="w-3 h-3 shrink-0" aria-hidden="true" /> : <ChevronDown className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                            <span className="truncate max-w-[180px]">{s.title}</span>
+                            <span className="text-primary/60 shrink-0">{s.questions.length}q</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDetachSet(s.id)}
+                            aria-label={`Disconnect ${s.title}`}
+                            title={`Disconnect "${s.title}" from this event`}
+                            className="ml-1 text-primary/60 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded-full"
+                          >
+                            <X className="w-3 h-3" aria-hidden="true" />
+                          </button>
+                        </div>
+                        {expandedSetIds.has(s.id) && s.questions.length > 0 && (
+                          <div className="border-t border-primary/10 divide-y divide-border/50">
+                            {s.questions.map((q) => (
+                              <div key={q.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-background/60 hover:bg-background transition-colors">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium truncate">{q.question}</p>
+                                  <p className="text-[10px] text-muted-foreground truncate">{q.options.join(" · ")}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleLaunchSavedQuestion(q)}
+                                  disabled={!!activePoll?.active}
+                                  className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                                >
+                                  <BarChart2 className="w-2.5 h-2.5" aria-hidden="true" />
+                                  Launch
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {expandedSetIds.has(s.id) && s.questions.length === 0 && (
+                          <p className="text-xs text-muted-foreground px-3 py-2 border-t border-primary/10">No questions in this set.</p>
+                        )}
                       </div>
                     ))}
                   </div>
