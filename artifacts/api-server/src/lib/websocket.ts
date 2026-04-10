@@ -177,6 +177,8 @@ async function getSessionUserFromReq(req: IncomingMessage): Promise<{ id: string
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
+  const PING_INTERVAL_MS = 25_000;
+
   wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
     logger.info({ url: req.url }, "WebSocket connected");
 
@@ -184,6 +186,22 @@ export function setupWebSocketServer(server: Server) {
     let currentRole: "host" | "attendee" | "pa-source" | null = null;
     let currentAttendeeId: number | undefined;
     let sessionUserId: string | null = null;
+
+    // ── Heartbeat ──────────────────────────────────────────────────────────────
+    // Replit's proxy closes idle WebSocket connections after ~60 s.
+    // We send a protocol-level ping every 25 s and give the client 10 s to pong.
+    let isAlive = true;
+    ws.on("pong", () => { isAlive = true; });
+
+    const heartbeat = setInterval(() => {
+      if (!isAlive) {
+        clearInterval(heartbeat);
+        ws.terminate();
+        return;
+      }
+      isAlive = false;
+      ws.ping();
+    }, PING_INTERVAL_MS);
 
     // Buffer messages received before auth completes (and while draining the queue)
     // to avoid dropping join messages sent immediately in the browser's ws.onopen handler.
@@ -203,6 +221,7 @@ export function setupWebSocketServer(server: Server) {
     });
 
     ws.on("close", () => {
+      clearInterval(heartbeat);
       if (!currentRoom) return;
       currentRoom.clients.delete(ws);
       if (currentRole === "host") {
