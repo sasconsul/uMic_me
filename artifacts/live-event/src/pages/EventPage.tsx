@@ -32,6 +32,10 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  Link2,
+  Link2Off,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -96,6 +100,13 @@ export function EventPage({ eventId }: EventPageProps) {
   const [saveSetId, setSaveSetId] = useState<number | "new" | null>(null);
   const [saveNewSetName, setSaveNewSetName] = useState("");
   const [savingToSet, setSavingToSet] = useState(false);
+
+  // Connected poll sets (event-level)
+  interface ConnectedSet { id: number; title: string; shareToken: string | null; questions: SavedQuestion[]; }
+  const [connectedSets, setConnectedSets] = useState<ConnectedSet[] | null>(null);
+  const [loadingConnected, setLoadingConnected] = useState(false);
+  const [managingSets, setManagingSets] = useState(false);
+  const [attachingSetId, setAttachingSetId] = useState<number | null>(null);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -434,6 +445,50 @@ export function EventPage({ eventId }: EventPageProps) {
       setTimeout(() => setPaSourceCopied(false), 2000);
     } catch {
       toast.error("Failed to copy link");
+    }
+  };
+
+  const loadConnectedSets = useCallback(async () => {
+    setLoadingConnected(true);
+    try {
+      const data = await apiFetch<{ pollSets: ConnectedSet[] }>(`/api/events/${eventId}/poll-sets`);
+      setConnectedSets(data.pollSets);
+    } catch {
+      toast.error("Could not load connected poll sets");
+    } finally {
+      setLoadingConnected(false);
+    }
+  }, [eventId]);
+
+  useEffect(() => {
+    void loadConnectedSets();
+  }, [loadConnectedSets]);
+
+  const handleDetachSet = async (pollSetId: number) => {
+    try {
+      await apiFetch(`/api/events/${eventId}/poll-sets/${pollSetId}`, { method: "DELETE" });
+      setConnectedSets((prev) => prev?.filter((s) => s.id !== pollSetId) ?? null);
+      setSavedSets(null);
+      toast.success("Poll set disconnected");
+    } catch {
+      toast.error("Failed to disconnect poll set");
+    }
+  };
+
+  const handleAttachSet = async (pollSetId: number) => {
+    setAttachingSetId(pollSetId);
+    try {
+      await apiFetch(`/api/events/${eventId}/poll-sets`, {
+        method: "POST",
+        body: JSON.stringify({ pollSetId }),
+      });
+      await loadConnectedSets();
+      setSavedSets(null);
+      toast.success("Poll set connected to event");
+    } catch {
+      toast.error("Failed to connect poll set");
+    } finally {
+      setAttachingSetId(null);
     }
   };
 
@@ -808,6 +863,95 @@ export function EventPage({ eventId }: EventPageProps) {
               )}
             </div>
 
+            {/* Connected poll sets */}
+            {!pollCreating && !activePoll?.active && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    Connected Sets
+                    {connectedSets !== null && (
+                      <span className="bg-muted text-muted-foreground rounded-full px-1.5 py-px text-[10px] font-medium">{connectedSets.length}</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setManagingSets((v) => { if (!v) void loadSavedSets(); return !v; }); }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  >
+                    {managingSets ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
+                    {managingSets ? "Close" : "Manage"}
+                  </button>
+                </div>
+                {loadingConnected ? (
+                  <p className="text-xs text-muted-foreground">Loading…</p>
+                ) : connectedSets !== null && connectedSets.length === 0 && !managingSets ? (
+                  <p className="text-xs text-muted-foreground">No poll sets connected. Click Manage to add some.</p>
+                ) : connectedSets !== null && connectedSets.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {connectedSets.map((s) => (
+                      <div key={s.id} className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 text-xs font-medium">
+                        <span className="truncate max-w-[150px]">{s.title}</span>
+                        <span className="text-primary/60 ml-1">{s.questions.length}q</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDetachSet(s.id)}
+                          aria-label={`Disconnect ${s.title}`}
+                          title={`Disconnect "${s.title}" from this event`}
+                          className="ml-1 text-primary/60 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-destructive rounded-full"
+                        >
+                          <X className="w-3 h-3" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {managingSets && (
+                  <div className="border border-border rounded-xl p-3 bg-muted/30 space-y-2 mt-1">
+                    <p className="text-xs text-muted-foreground font-medium">All your poll sets — click to connect</p>
+                    {loadingSets || connectedSets === null ? (
+                      <p className="text-xs text-muted-foreground">Loading…</p>
+                    ) : (savedSets ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No poll sets yet. Create some from the Poll Sets page.</p>
+                    ) : (
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {(savedSets ?? []).map((s) => {
+                          const isConnected = (connectedSets ?? []).some((c) => c.id === s.id);
+                          return (
+                            <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-background text-sm">
+                              <div className="min-w-0">
+                                <span className="font-medium truncate block">{s.title}</span>
+                                <span className="text-xs text-muted-foreground">{s.questions.length} question{s.questions.length !== 1 ? "s" : ""}</span>
+                              </div>
+                              {isConnected ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDetachSet(s.id)}
+                                  className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive rounded"
+                                >
+                                  <Link2Off className="w-3.5 h-3.5" aria-hidden="true" /> Disconnect
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={attachingSetId === s.id}
+                                  onClick={() => handleAttachSet(s.id)}
+                                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors shrink-0 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                                >
+                                  <Link2 className="w-3.5 h-3.5" aria-hidden="true" /> Connect
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {pollCreating && (
               <div className="space-y-3">
                 {/* Mode tabs */}
@@ -883,47 +1027,59 @@ export function EventPage({ eventId }: EventPageProps) {
                   </>
                 )}
 
-                {pollMode === "saved" && (
-                  <div className="space-y-2">
-                    {loadingSets ? (
-                      <p className="text-xs text-muted-foreground py-2">Loading poll sets…</p>
-                    ) : savedSets !== null && savedSets.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-2">No poll sets yet. Create one from the dashboard.</p>
-                    ) : (
-                      <>
-                        <select
-                          value={selectedSetId ?? ""}
-                          onChange={(e) => setSelectedSetId(e.target.value ? Number(e.target.value) : null)}
-                          className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                          aria-label="Select poll set"
-                        >
-                          <option value="">— Select a poll set —</option>
-                          {(savedSets ?? []).map((s) => (
-                            <option key={s.id} value={s.id}>{s.title}</option>
-                          ))}
-                        </select>
-                        {selectedSetId && (
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {(savedSets ?? []).find((s) => s.id === selectedSetId)?.questions.map((q) => (
-                              <button
-                                key={q.id}
-                                type="button"
-                                onClick={() => handleLaunchSavedQuestion(q)}
-                                className="w-full text-left px-3 py-2.5 text-sm rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary space-y-0.5"
-                              >
-                                <p className="font-medium truncate">{q.question}</p>
-                                <p className="text-xs text-muted-foreground truncate">{q.options.join(" · ")}</p>
-                              </button>
+                {pollMode === "saved" && (() => {
+                  const setsToShow = connectedSets !== null && connectedSets.length > 0
+                    ? connectedSets
+                    : (savedSets ?? []);
+                  const isConnectedOnly = connectedSets !== null && connectedSets.length > 0;
+                  return (
+                    <div className="space-y-2">
+                      {loadingConnected && connectedSets === null ? (
+                        <p className="text-xs text-muted-foreground py-2">Loading poll sets…</p>
+                      ) : setsToShow.length === 0 ? (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground py-2">No poll sets connected to this event.</p>
+                          <p className="text-xs text-muted-foreground">Use the <strong>Manage</strong> button above to connect your poll sets.</p>
+                        </div>
+                      ) : (
+                        <>
+                          {isConnectedOnly && (
+                            <p className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wide">Connected to this event</p>
+                          )}
+                          <select
+                            value={selectedSetId ?? ""}
+                            onChange={(e) => setSelectedSetId(e.target.value ? Number(e.target.value) : null)}
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                            aria-label="Select poll set"
+                          >
+                            <option value="">— Select a poll set —</option>
+                            {setsToShow.map((s) => (
+                              <option key={s.id} value={s.id}>{s.title}</option>
                             ))}
-                            {((savedSets ?? []).find((s) => s.id === selectedSetId)?.questions ?? []).length === 0 && (
-                              <p className="text-xs text-muted-foreground px-1">This set has no questions yet.</p>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                          </select>
+                          {selectedSetId && (
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                              {setsToShow.find((s) => s.id === selectedSetId)?.questions.map((q) => (
+                                <button
+                                  key={q.id}
+                                  type="button"
+                                  onClick={() => handleLaunchSavedQuestion(q)}
+                                  className="w-full text-left px-3 py-2.5 text-sm rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary space-y-0.5"
+                                >
+                                  <p className="font-medium truncate">{q.question}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{q.options.join(" · ")}</p>
+                                </button>
+                              ))}
+                              {(setsToShow.find((s) => s.id === selectedSetId)?.questions ?? []).length === 0 && (
+                                <p className="text-xs text-muted-foreground px-1">This set has no questions yet.</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Show results toggle (applies to both modes) */}
                 <label className="flex items-center gap-3 cursor-pointer select-none" htmlFor="poll-show-results">

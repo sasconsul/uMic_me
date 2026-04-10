@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, serial, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 import { eventsTable } from "./events";
 
 export const pollSetsTable = pgTable("poll_sets", {
@@ -34,9 +34,26 @@ export const pollResponsesTable = pgTable("poll_responses", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const eventPollSetsTable = pgTable(
+  "event_poll_sets",
+  {
+    id: serial("id").primaryKey(),
+    eventId: integer("event_id")
+      .notNull()
+      .references(() => eventsTable.id, { onDelete: "cascade" }),
+    pollSetId: integer("poll_set_id")
+      .notNull()
+      .references(() => pollSetsTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.eventId, t.pollSetId)],
+);
+
 export type PollSet = typeof pollSetsTable.$inferSelect;
 export type InsertPollSet = typeof pollSetsTable.$inferInsert;
 export type PollQuestion = typeof pollQuestionsTable.$inferSelect;
 export type InsertPollQuestion = typeof pollQuestionsTable.$inferInsert;
 export type PollResponse = typeof pollResponsesTable.$inferSelect;
 export type InsertPollResponse = typeof pollResponsesTable.$inferInsert;
+export type EventPollSet = typeof eventPollSetsTable.$inferSelect;
+export type InsertEventPollSet = typeof eventPollSetsTable.$inferInsert;

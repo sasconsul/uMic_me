@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
-import { db, eventsTable, attendeesTable } from "@workspace/db";
-import { eq, and, count, sql } from "drizzle-orm";
+import { db, eventsTable, attendeesTable, eventPollSetsTable, pollSetsTable, pollQuestionsTable } from "@workspace/db";
+import { eq, and, count, sql, asc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import {
   CreateEventBody,
@@ -196,7 +196,95 @@ router.post("/events/:id/duplicate", requireAuth, async (req: Request & { userId
       status: "pending",
     })
     .returning();
+
+  // Deep-copy all poll sets connected to the source event and attach to new event
+  const attachedLinks = await db
+    .select()
+    .from(eventPollSetsTable)
+    .where(eq(eventPollSetsTable.eventId, params.data.id));
+
+  for (const link of attachedLinks) {
+    const [srcSet] = await db
+      .select()
+      .from(pollSetsTable)
+      .where(and(eq(pollSetsTable.id, link.pollSetId), eq(pollSetsTable.hostUserId, req.userId!)));
+    if (!srcSet) continue;
+
+    const [newSet] = await db
+      .insert(pollSetsTable)
+      .values({ hostUserId: req.userId!, title: srcSet.title })
+      .returning();
+
+    const questions = await db
+      .select()
+      .from(pollQuestionsTable)
+      .where(eq(pollQuestionsTable.pollSetId, srcSet.id))
+      .orderBy(asc(pollQuestionsTable.orderIndex), asc(pollQuestionsTable.createdAt));
+
+    if (questions.length > 0) {
+      await db.insert(pollQuestionsTable).values(
+        questions.map((q) => ({
+          pollSetId: newSet.id,
+          question: q.question,
+          options: q.options,
+          orderIndex: q.orderIndex,
+        }))
+      );
+    }
+
+    await db.insert(eventPollSetsTable).values({ eventId: event.id, pollSetId: newSet.id });
+  }
+
   res.status(201).json({ event });
+});
+
+// List poll sets attached to an event
+router.get("/events/:id/poll-sets", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [ev] = await db.select().from(eventsTable).where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.userId!)));
+  if (!ev) { res.status(404).json({ error: "Event not found" }); return; }
+
+  const links = await db.select().from(eventPollSetsTable).where(eq(eventPollSetsTable.eventId, eventId));
+  const pollSets = await Promise.all(
+    links.map(async (link) => {
+      const [set] = await db.select().from(pollSetsTable).where(eq(pollSetsTable.id, link.pollSetId));
+      if (!set) return null;
+      const questions = await db
+        .select()
+        .from(pollQuestionsTable)
+        .where(eq(pollQuestionsTable.pollSetId, set.id))
+        .orderBy(asc(pollQuestionsTable.orderIndex), asc(pollQuestionsTable.createdAt));
+      return { id: set.id, title: set.title, shareToken: set.shareToken, questions };
+    })
+  );
+  res.json({ pollSets: pollSets.filter(Boolean) });
+});
+
+// Attach a poll set to an event
+router.post("/events/:id/poll-sets", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const eventId = Number(req.params.id);
+  const pollSetId = Number(req.body?.pollSetId);
+  if (!eventId || !pollSetId) { res.status(400).json({ error: "Invalid ids" }); return; }
+  const [ev] = await db.select().from(eventsTable).where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.userId!)));
+  if (!ev) { res.status(404).json({ error: "Event not found" }); return; }
+  const [set] = await db.select().from(pollSetsTable).where(and(eq(pollSetsTable.id, pollSetId), eq(pollSetsTable.hostUserId, req.userId!)));
+  if (!set) { res.status(404).json({ error: "Poll set not found" }); return; }
+  const [existing] = await db.select().from(eventPollSetsTable).where(and(eq(eventPollSetsTable.eventId, eventId), eq(eventPollSetsTable.pollSetId, pollSetId)));
+  if (existing) { res.json({ success: true }); return; }
+  await db.insert(eventPollSetsTable).values({ eventId, pollSetId });
+  res.status(201).json({ success: true });
+});
+
+// Detach a poll set from an event
+router.delete("/events/:id/poll-sets/:pollSetId", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
+  const eventId = Number(req.params.id);
+  const pollSetId = Number(req.params.pollSetId);
+  if (!eventId || !pollSetId) { res.status(400).json({ error: "Invalid ids" }); return; }
+  const [ev] = await db.select().from(eventsTable).where(and(eq(eventsTable.id, eventId), eq(eventsTable.hostUserId, req.userId!)));
+  if (!ev) { res.status(404).json({ error: "Event not found" }); return; }
+  await db.delete(eventPollSetsTable).where(and(eq(eventPollSetsTable.eventId, eventId), eq(eventPollSetsTable.pollSetId, pollSetId)));
+  res.json({ success: true });
 });
 
 router.delete("/events/:id", requireAuth, async (req: Request & { userId?: string }, res: Response) => {
