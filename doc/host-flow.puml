@@ -19,13 +19,19 @@ start
 
 #LightSkyBlue:Landing Page  (/)\nPublic marketing home;
 
-:Sign In\nReplit Auth OIDC/PKCE;
+:Sign In\nClerk (email / social OAuth);
 note right
-  Redirect → Replit OIDC provider
-  Callback → express-session cookie created
+  Clerk session cookie created
+  userId stored for event/poll-set ownership
 end note
 
 :Dashboard  (/dashboard)\nList of host's events;
+
+if (Manage poll sets?) then (yes)
+  :Click "Poll Sets" link in header\nNavigate to /poll-sets;
+  :Poll Sets Page — create/edit/delete sets\nadd/edit questions, download CSV;
+  :Return to Dashboard;
+endif
 
 if (Create new event?) then (yes)
   :Open Create Event modal\n(title, logo upload, time, description);
@@ -84,6 +90,38 @@ split again
     note right
       Broadcasts qa-closed
       Attendees' raised hands cleared
+    end note
+  }
+split again
+  partition "In-Event Polls" #E8F5E9 {
+    :Click "New Poll";
+
+    if (Use saved question?) then (yes — From Poll Set tab)
+      :GET /api/poll-sets\nSelect a set, choose a question;
+      :Click question to launch\nsend: launch-poll { question, options,\n  showResults, pollQuestionId };
+      note right
+        pollQuestionId links this poll
+        to the saved question for DB
+        persistence on end-poll
+      end note
+    else (no — New Question tab)
+      :Enter question + options (2–10)\nToggle showResults;
+      :Click "Launch Poll"\nsend: launch-poll { question, options, showResults };
+      note right: No pollQuestionId → votes in-memory only
+    endif
+
+    :Poll is live — bar chart updates in real time;
+
+    if (Toggle results visibility?) then (yes)
+      :send: toggle-poll-results { showResults };
+      note right: Broadcasts poll-results-toggled to all
+    endif
+
+    :Click "End Poll"\nsend: end-poll;
+    note right
+      Broadcasts poll-ended to all
+      If pollQuestionId was set:
+        votes written to poll_responses table
     end note
   }
 end split

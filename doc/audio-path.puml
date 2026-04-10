@@ -37,7 +37,7 @@ rectangle "Host Device" as HostDevice #FFE0B2 {
 }
 
 rectangle "WebSocket Server\n(api-server: /ws)" as WSServer #E3F2FD {
-  component [Room\n(in-memory)] as Room
+  component [Room\n(in-memory)\nclients · qaOpen · activePoll] as Room
 }
 
 rectangle "Attendee Device  ×N" as AttendeeDevice #E8F5E9 {
@@ -93,11 +93,18 @@ note bottom of UplinkSender
    muteUntilCalled setting)
 end note
 
-' ─── WebSocket Control Plane (SDP/ICE relay) ──────────────────────────────────
+' ─── WebSocket Control Plane (SDP/ICE relay + poll messages) ──────────────────
 
-HostDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
-AttendeeDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
+HostDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE / poll control)
+AttendeeDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE / cast-vote)
 SpeakerDevice -[#777777,dashed]-> WSServer : WS signaling\n(SDP / ICE)
+
+note right of WSServer
+  Poll messages flow through here too
+  (no audio — control plane only):
+  launch-poll · end-poll · cast-vote
+  poll-launched · poll-updated · poll-ended
+end note
 
 ' ─── Legend ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +113,7 @@ legend right
   |<#1565C0> blue bold | Broadcast downlink (host → attendees) |
   |<#AD1457> pink bold | PA broadcast downlink (host → PA) |
   |<#2E7D32> green bold | Q&A speaker uplink (attendee → host) |
-  |<#777777,dashed> grey dashed | WebSocket signaling (control plane) |
+  |<#777777,dashed> grey dashed | WebSocket signaling + poll control plane |
 endlegend
 
 @enduml

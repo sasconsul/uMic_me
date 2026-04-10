@@ -23,13 +23,14 @@ actor Attendee as A
 == Session Setup ==
 
 H -> WS : join-host { eventId }
-note right of WS : Verifies host ownership via DB\nCreates or joins Room
-WS --> H : room-state { attendees[], qaOpen }
+note right of WS : Verifies host ownership via DB (Clerk userId)\nCreates or joins Room
+WS --> H : room-state { attendees[], qaOpen, activePoll? }
 
 A -> WS : join-attendee { eventId, attendeeId, attendeeToken }
 note left of WS : Verifies sessionToken against DB
 WS --> H : attendee-joined { attendeeId, attendeeName, assignedId }
 WS --> A : qa-state { qaOpen }
+WS --> A : poll-state { poll, votedIndex } (only if poll is active)
 
 == Audio Broadcast (Host → Attendees) ==
 
@@ -54,8 +55,8 @@ H -> WS : open-qa { muteUntilCalled: true|false }
 note right of WS : Room.qaOpen = true\nRoom.muteUntilCalled stored
 WS --> A : qa-opened
 
-A -> WS : raise-hand { raised: true }
-WS --> H : hand-update { attendeeId, raisedHand, raisedHandAt }
+A -> WS : raise-hand { raised: true, questionText? }
+WS --> H : hand-update { attendeeId, raisedHand, raisedHandAt, questionText? }
 
 == Q&A: Speaker Selection ==
 
@@ -95,6 +96,44 @@ note left of A : track.enabled = true\nMic goes live
 H -> WS : close-qa
 WS --> A : qa-closed
 note left of A : Raised hand cleared\nHand button disabled
+
+== In-Event Poll: Launch ==
+
+H -> WS : launch-poll { question, options[], showResults, pollQuestionId? }
+note right of WS
+  Room.activePoll created (in-memory)
+  pollQuestionId stored for later DB write
+end note
+WS --> H : poll-launched { poll }
+WS --> A : poll-launched { poll }
+
+== In-Event Poll: Voting ==
+
+A -> WS : cast-vote { optionIndex }
+note right of WS : vote stored in Poll.votes Map
+WS --> A : poll-vote-confirmed { optionIndex }
+WS --> H : poll-updated { poll }
+note right of H : Host always sees live tally
+WS --> A : poll-updated { poll } (only if showResults = true)
+
+== In-Event Poll: Toggle Results Visibility ==
+
+H -> WS : toggle-poll-results { showResults }
+WS --> H : poll-results-toggled { poll }
+WS --> A : poll-results-toggled { poll }
+note left of A : Bar chart shown or hidden\nbased on showResults flag
+
+== In-Event Poll: End ==
+
+H -> WS : end-poll
+note right of WS
+  Poll.active = false
+  If pollQuestionId set AND votes > 0:
+    INSERT INTO poll_responses (batch)
+end note
+WS --> H : poll-ended { poll }
+WS --> A : poll-ended { poll }
+note left of A : Poll card frozen\nVoting disabled
 
 == End Event ==
 

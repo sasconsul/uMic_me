@@ -1,6 +1,6 @@
 # uMic.me — Screen Flows
 
-User journeys through the app for both Hosts and Attendees, including the real-time Q&A sub-flows.
+User journeys through the app for both Hosts and Attendees, including the real-time Q&A and Polls sub-flows.
 
 ---
 
@@ -13,9 +13,9 @@ Landing Page (/)
        │
        │  Click "Host an Event" or "Sign in"
        ▼
-Sign In — Replit Auth (OIDC/PKCE)
+Sign In — Clerk (email / social OAuth)
        │
-       │  Auth callback → session created
+       │  Auth callback → Clerk session created
        ▼
 Dashboard (/dashboard)
        │
@@ -23,6 +23,8 @@ Dashboard (/dashboard)
        │         Title, logo, description, start time
        │         → POST /api/events
        │         → Navigate to Event Control
+       │
+       ├──► Poll Sets link (header) → /poll-sets
        │
        │  Click "Manage" on event card
        ▼
@@ -39,6 +41,8 @@ Go Live — event.status = "live"
        │         send: start-broadcast
        │
        ├──► Open Q&A (see Q&A sub-flow below)
+       │
+       ├──► Launch Poll (see Poll sub-flow below)
        │
        │  Click "End Event"
        ▼
@@ -95,6 +99,76 @@ send: close-qa
 
 ---
 
+### Poll Sub-Flow (Host Side)
+
+```
+Event Control — Polls section
+       │
+       │  Click "New Poll"
+       ▼
+Poll creation panel opens (two modes)
+       │
+       ├─── "New Question" tab ─────────────────────────────────
+       │         Enter question text + 2–10 options
+       │         Toggle "Show live results to attendees"
+       │         Click "Launch Poll"
+       │         send: launch-poll { question, options, showResults }
+       │         (no pollQuestionId → votes are in-memory only)
+       │
+       └─── "From Poll Set" tab ────────────────────────────────
+                 GET /api/poll-sets → list sets
+                 Select set → questions listed
+                 Click a question to launch it
+                 send: launch-poll { question, options, showResults, pollQuestionId }
+                 (pollQuestionId → votes persisted to DB on end)
+       │
+       ▼
+Poll is live — bar-chart tally updates in real time
+       │
+       ├──► Toggle "Show results to attendees"
+       │         send: toggle-poll-results { showResults }
+       │         Server broadcasts poll-results-toggled to all
+       │
+       │  Click "End Poll"
+       ▼
+send: end-poll
+       │  Poll marked inactive
+       │  Server broadcasts poll-ended to all
+       │  If pollQuestionId was set: votes written to poll_responses table
+       ▼
+Poll panel returns to idle — host may launch another
+```
+
+---
+
+### Poll Sets Management Flow
+
+```
+Dashboard — header
+       │
+       │  Click "Poll Sets" link
+       ▼
+Poll Sets Page (/poll-sets)
+       │
+       ├──► Create Set (enter title → POST /api/poll-sets)
+       │
+       ├──► Edit set title (inline → PUT /api/poll-sets/:id)
+       │
+       ├──► Duplicate set (POST /api/poll-sets/:id/duplicate)
+       │
+       ├──► Delete set (DELETE /api/poll-sets/:id)
+       │
+       └──► Expand set → manage questions
+                 ├── Add question (POST /api/poll-sets/:id/questions)
+                 ├── Edit question (PUT /api/poll-sets/:id/questions/:qid)
+                 ├── Delete question (DELETE /api/poll-sets/:id/questions/:qid)
+                 └── Download results CSV
+                       GET /api/poll-sets/:id/results.csv
+                       (contains all poll_responses for all questions in the set)
+```
+
+---
+
 ## Attendee Flow
 
 ### Main Path
@@ -116,6 +190,7 @@ POST /api/events/join/:token { displayName }
 Attendee Page (/attend/:token/:attendeeId)
        │  WebSocket connects: join-attendee { eventId, attendeeId, attendeeToken }
        │  Server sends: qa-state { qaOpen }
+       │  Server sends: poll-state (if a poll is already active)
        │
        ├──► [When host starts broadcast]
        │         Receive: stream-available
@@ -130,6 +205,10 @@ Attendee Page (/attend/:token/:attendeeId)
        │         Receive: qa-opened
        │         Raise Hand button activates
        │         (see Q&A sub-flow below)
+       │
+       ├──► [When host launches a poll]
+       │         Receive: poll-launched
+       │         (see Poll sub-flow below)
        │
        └──► [When event ends]
                  Receive: session-ended
@@ -180,13 +259,47 @@ WebRTC uplink closed
 
 ---
 
+### Poll Sub-Flow (Attendee Side)
+
+```
+Receive: poll-launched { poll }
+       │  Poll card appears with question and options
+       ▼
+Tap an answer option
+       │  send: cast-vote { optionIndex }
+       ▼
+Receive: poll-vote-confirmed { optionIndex }
+       │  Selected option highlighted
+       │  Vote cannot be changed
+       │
+       ├──► [If showResults = true]
+       │         See live bar-chart tally update in real time
+       │         Receive: poll-updated on each new vote
+       │
+       │  [If host toggles showResults on]
+       │         Receive: poll-results-toggled
+       │         Bar chart appears
+       │
+       │  [If host toggles showResults off]
+       │         Receive: poll-results-toggled
+       │         Bar chart hidden — "Results hidden by host"
+       │
+       │  Host ends poll
+       ▼
+Receive: poll-ended
+       │  Poll card shows final state (results if showResults was on)
+       │  Voting disabled
+```
+
+---
+
 ## WebSocket Message Reference
 
 ### Host-Initiated Messages
 
 | Message | Payload | Effect |
 |---|---|---|
-| `join-host` | `{ eventId }` | Joins or creates room; receives `room-state` |
+| `join-host` | `{ eventId }` | Joins or creates room; receives `room-state` (includes `activePoll`) |
 | `open-qa` | `{ muteUntilCalled }` | Opens Q&A; broadcasts `qa-opened` |
 | `close-qa` | — | Closes Q&A; broadcasts `qa-closed` |
 | `select-speaker` | `{ attendeeId }` | Notifies all + sends `speaker-mic-request` to attendee |
@@ -194,13 +307,17 @@ WebRTC uplink closed
 | `start-broadcast` | — | Broadcasts `stream-available` |
 | `stop-broadcast` | — | Broadcasts `stream-ended` |
 | `close-event` | — | Sends `session-ended` to all, closes attendee connections |
+| `launch-poll` | `{ question, options[], showResults, pollQuestionId? }` | Stores poll in room; broadcasts `poll-launched` to all |
+| `end-poll` | — | Marks poll inactive; broadcasts `poll-ended`; persists votes if `pollQuestionId` set |
+| `toggle-poll-results` | `{ showResults }` | Updates `showResults`; broadcasts `poll-results-toggled` to all |
 
 ### Attendee-Initiated Messages
 
 | Message | Payload | Effect |
 |---|---|---|
-| `join-attendee` | `{ eventId, attendeeId, attendeeToken }` | Joins room; receives `qa-state` |
-| `raise-hand` | `{ raised }` | Updates hand state; notifies host via `hand-update` |
+| `join-attendee` | `{ eventId, attendeeId, attendeeToken }` | Joins room; receives `qa-state`; receives `poll-state` if poll active |
+| `raise-hand` | `{ raised, questionText? }` | Updates hand state; notifies host via `hand-update` |
+| `cast-vote` | `{ optionIndex }` | Records vote; sends `poll-vote-confirmed`; updates host tally via `poll-updated` |
 
 ### WebRTC Signaling (relayed by server)
 

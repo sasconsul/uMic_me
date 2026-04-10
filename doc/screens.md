@@ -9,8 +9,8 @@ All screens in the Live Event Platform, their routes, access control, and key in
 | Badge | Meaning |
 |---|---|
 | **PUBLIC** | No authentication required |
-| **PUBLIC (Attendees)** | No Replit login required; attendee `sessionToken` used for actions |
-| **PROTECTED** | Replit Auth required — redirects to sign-in if unauthenticated |
+| **PUBLIC (Attendees)** | No Clerk login required; attendee `sessionToken` used for actions |
+| **PROTECTED** | Clerk Auth required — redirects to sign-in if unauthenticated |
 
 ---
 
@@ -25,7 +25,7 @@ All screens in the Live Event Platform, their routes, access control, and key in
 Marketing home page. Entry point for new hosts.
 
 **Key interactions:**
-- "Host an Event" button → initiates Replit Auth login, redirects to Dashboard on success
+- "Host an Event" button → initiates Clerk sign-in, redirects to Dashboard on success
 - "Sign in" button → same auth flow
 - No content is gated — anyone can see the landing page
 
@@ -46,7 +46,9 @@ The host's home base. Shows all events they own.
   - Logo is uploaded to Object Storage; URL stored in `events.logoUrl`
   - On submit: `POST /api/events`, then navigate to Event Control
 - **Manage** button on event card → navigates to `/events/:id`
-- **Delete** button → `confirm()` dialog, then `DELETE /api/events/:id`
+- **Duplicate** button on event card → `POST /api/events/:id/duplicate`
+- **Delete** button → confirmation dialog, then `DELETE /api/events/:id`
+- **Poll Sets** link in the header → navigates to `/poll-sets`
 - Event status badges: `pending` (yellow), `live` (green), `closed` (grey)
 
 ---
@@ -78,6 +80,15 @@ The host's live control center. This is the primary operational screen during a 
   - If mute mode on: a "Called on" panel appears with **Open Mic** button
   - "Open Mic" → `unmute-speaker` WS message → attendee's track enabled
 - **Close Q&A** — sends `close-qa`, clears queue and selected speaker
+
+### Polls
+- **New Poll** button — opens the poll creation panel with two modes:
+  - **New Question** tab — ad-hoc question: type question text + 2–10 options, optional "Show live results to attendees" toggle, then "Launch Poll"
+  - **From Poll Set** tab — fetches `GET /api/poll-sets`, shows a set dropdown, then lists questions in the chosen set; clicking a question instantly launches it (with its saved `pollQuestionId` for DB persistence)
+- While a poll is active:
+  - Live bar-chart tally shows vote counts per option (host always sees results)
+  - **Show/Hide results** toggle → sends `toggle-poll-results`; controls whether attendees can see the live tally
+  - **End Poll** button → sends `end-poll`; if the poll had a `pollQuestionId`, votes are persisted to `poll_responses`
 
 ### Attendee List
 - Live list of all connected attendees with their assigned number and display name
@@ -148,11 +159,19 @@ The live experience for attendees. Loaded from `sessionStorage` — no API call 
 
 ### Speaker Status (when called on)
 Three states shown as a banner:
-- 🟢 **"Selected as speaker — mic activating..."** — connection being established
-- 🟡 **"Selected — waiting for the host to open your mic"** — `startMuted: true`, awaiting `speaker-unmuted`
-- 🔴 **"Mic active — you are speaking live"** — WebRTC uplink connected and track enabled
+- **"Selected as speaker — mic activating..."** — connection being established
+- **"Selected — waiting for the host to open your mic"** — `startMuted: true`, awaiting `speaker-unmuted`
+- **"Mic active — you are speaking live"** — WebRTC uplink connected and track enabled
 
 **Stop Speaking** button appears when mic is active.
+
+### Live Poll
+- Appears when host launches a poll; `poll-launched` WS message received
+- Attendee sees the question and taps an option to vote (`cast-vote`)
+- After voting, their choice is highlighted and locked (no re-vote)
+- If `showResults` is enabled by host: live bar-chart tally updates in real time
+- If host hides results: chart replaced with "Results hidden by host" message
+- Poll card remains visible after `poll-ended`, showing final state
 
 ### Raise Hand Button
 - Large touch-friendly button, full width
@@ -163,3 +182,46 @@ Three states shown as a banner:
 
 ### Event Closed
 If `session-ended` WS message received: full-screen "Event has ended" state with thank-you message.
+
+---
+
+## Screen 7 — Poll Sets
+
+| | |
+|---|---|
+| **Route** | `/poll-sets` |
+| **Access** | PROTECTED |
+| **File** | `src/pages/PollSetsPage.tsx` |
+
+Reusable poll question library for the host. Questions saved here can be launched directly from any event's poll panel.
+
+**Key interactions:**
+- **Create Set** — enter a title, `POST /api/poll-sets`; new set appears in the list
+- **Edit title** — inline edit on the set card, `PUT /api/poll-sets/:id`
+- **Duplicate** — `POST /api/poll-sets/:id/duplicate`; creates a copy with all questions
+- **Delete** — confirmation dialog, then `DELETE /api/poll-sets/:id`; cascades to all questions and stored responses
+- **Expand set** — reveals the question list for that set
+  - **Add Question** — enter question text + 2–10 options, `POST /api/poll-sets/:id/questions`
+  - **Edit Question** — inline edit, `PUT /api/poll-sets/:id/questions/:qid`
+  - **Delete Question** — `DELETE /api/poll-sets/:id/questions/:qid`
+  - **Download Results CSV** — `GET /api/poll-sets/:id/results.csv`
+    - Contains one row per recorded vote, with columns: Set, Question, Option, Attendee Name, Event ID, Voted At
+    - Only available for questions that were launched from a saved set during an event
+
+---
+
+## Screen 8 — PA Source
+
+| | |
+|---|---|
+| **Route** | `/pa-source/:token` |
+| **Access** | PUBLIC (token-gated) |
+| **File** | `src/pages/PaSourcePage.tsx` |
+
+A standalone page for a sound engineer. Receives the host's audio stream over WebRTC and plays it into a PA mixing desk.
+
+**Key interactions:**
+- Token is generated by the host from the Event Control page (`POST /api/events/:id/pa-token`)
+- Host sends the token URL to the sound engineer
+- Page connects via raw WebSocket (not `useWebSocket` hook) and establishes a dedicated WebRTC peer connection with the host
+- Audio plays through the device's default output — the sound engineer connects their device to the mixing desk

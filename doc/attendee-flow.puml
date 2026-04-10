@@ -43,6 +43,10 @@ note right: Server verifies token against DB
 
 :Receive: qa-state { qaOpen }\nInitial Q&A state applied;
 
+if (Poll already active?) then (yes)
+  :Receive: poll-state { poll, votedIndex }\nPoll card shown immediately;
+endif
+
 split
   partition "Audio Stream" #BBDEFB {
     :Waiting for host to broadcast...;
@@ -92,6 +96,26 @@ split again
     else (host closes Q&A)
       :Receive: qa-closed\nHand lowered automatically;
     endif
+  }
+split again
+  partition "Live Poll" #FFF9C4 {
+    :Receive: poll-launched { poll }\nPoll card appears with question and options;
+
+    :Tap an answer option\nsend: cast-vote { optionIndex };
+
+    :Receive: poll-vote-confirmed { optionIndex }\nChosen option highlighted — vote locked;
+
+    if (showResults = true?) then (yes)
+      :Bar chart shown\nUpdates in real time on poll-updated;
+    else (no)
+      :"Results hidden by host" shown;
+    endif
+
+    if (Host toggles showResults?) then (yes)
+      :Receive: poll-results-toggled\nBar chart appears or hides;
+    endif
+
+    :Receive: poll-ended\nPoll card shows final state\nVoting disabled;
   }
 end split
 
