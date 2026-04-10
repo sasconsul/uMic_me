@@ -249,9 +249,11 @@ export function EventPage({ eventId }: EventPageProps) {
           if (typeof msg.qaOpen === "boolean") setQaOpen(msg.qaOpen);
           if (typeof msg.paSourceConnected === "boolean") setPaSourceConnected(msg.paSourceConnected as boolean);
           if (msg.activePoll) setActivePoll(msg.activePoll as PollSnapshot);
-          if (msg.activeDirectedQuestion) {
-            setActiveDirectedQuestion(msg.activeDirectedQuestion as { text: string; responses: DirectedResponse[] });
-          }
+          setActiveDirectedQuestion(
+            msg.activeDirectedQuestion
+              ? (msg.activeDirectedQuestion as { text: string; responses: DirectedResponse[] })
+              : null
+          );
           break;
         }
 
@@ -1044,7 +1046,7 @@ export function EventPage({ eventId }: EventPageProps) {
                                   className="shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                                 >
                                   <BarChart2 className="w-2.5 h-2.5" aria-hidden="true" />
-                                  Launch
+                                  Launch Poll
                                 </button>
                               </div>
                             ))}
