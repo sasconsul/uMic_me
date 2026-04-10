@@ -19,6 +19,17 @@ interface RoomClient {
   questionText?: string;
 }
 
+interface Poll {
+  id: string;
+  question: string;
+  options: string[];
+  /** attendeeId → option index */
+  votes: Map<number, number>;
+  /** Whether attendees can see the live tally */
+  showResults: boolean;
+  active: boolean;
+}
+
 interface Room {
   eventId: number;
   /**
@@ -33,6 +44,8 @@ interface Room {
   qaOpen: boolean;
   /** When true, attendees' mics start muted when called on; host must send unmute-speaker */
   muteUntilCalled: boolean;
+  /** Current active poll, if any */
+  activePoll?: Poll;
 }
 
 /** In-memory store for ephemeral PA source tokens: eventId → token */
@@ -82,6 +95,24 @@ function sendToAttendee(room: Room, attendeeId: number, message: object) {
       ws.send(JSON.stringify(message));
     }
   });
+}
+
+function getPollSnapshot(poll: Poll, role: "host" | "attendee") {
+  const tally = poll.options.map((_, i) => ({ index: i, count: 0 }));
+  poll.votes.forEach((optionIndex) => {
+    tally[optionIndex].count++;
+  });
+  const counts = tally.map((t) => t.count);
+  return {
+    id: poll.id,
+    question: poll.question,
+    options: poll.options,
+    counts,
+    totalVotes: poll.votes.size,
+    showResults: poll.showResults,
+    active: poll.active,
+    ...(role === "host" ? {} : {}),
+  };
 }
 
 function getAttendeeList(room: Room) {
@@ -254,6 +285,7 @@ export function setupWebSocketServer(server: Server) {
             attendees: getAttendeeList(currentRoom),
             qaOpen: currentRoom.qaOpen,
             paSourceConnected: !!(currentRoom.paSourceWs && currentRoom.paSourceWs.readyState === WebSocket.OPEN),
+            activePoll: currentRoom.activePoll ? getPollSnapshot(currentRoom.activePoll, "host") : null,
           }));
           break;
         }
@@ -302,6 +334,14 @@ export function setupWebSocketServer(server: Server) {
           currentAttendeeId = attendeeId;
           currentRoom.clients.set(ws, { ws, role: "attendee", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           ws.send(JSON.stringify({ type: "qa-state", qaOpen: currentRoom.qaOpen }));
+          if (currentRoom.activePoll && currentRoom.activePoll.active) {
+            const votedIndex = currentRoom.activePoll.votes.get(attendeeId);
+            ws.send(JSON.stringify({
+              type: "poll-state",
+              poll: getPollSnapshot(currentRoom.activePoll, "attendee"),
+              votedIndex: votedIndex ?? null,
+            }));
+          }
           sendToHost(currentRoom, { type: "attendee-joined", attendeeId, assignedId: attendee.assignedId, attendeeName: attendee.displayName });
           break;
         }
@@ -378,6 +418,75 @@ export function setupWebSocketServer(server: Server) {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           const targetId = Number(msg.attendeeId);
           sendToAttendee(currentRoom, targetId, { type: "speaker-unmuted" });
+          break;
+        }
+
+        // ─── Polling ─────────────────────────────────────────────────────────
+        case "launch-poll": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          const question = typeof msg.question === "string" ? msg.question.trim().slice(0, 300) : "";
+          const rawOptions = Array.isArray(msg.options) ? msg.options : [];
+          const options = (rawOptions as unknown[])
+            .map((o) => (typeof o === "string" ? o.trim().slice(0, 200) : ""))
+            .filter((o) => o.length > 0)
+            .slice(0, 10);
+          if (!question || options.length < 2) return;
+          const poll: Poll = {
+            id: randomUUID(),
+            question,
+            options,
+            votes: new Map(),
+            showResults: Boolean(msg.showResults),
+            active: true,
+          };
+          currentRoom.activePoll = poll;
+          broadcastToRoom(currentRoom, {
+            type: "poll-launched",
+            poll: getPollSnapshot(poll, "attendee"),
+          });
+          break;
+        }
+
+        case "end-poll": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          if (!currentRoom.activePoll) return;
+          currentRoom.activePoll.active = false;
+          broadcastToRoom(currentRoom, {
+            type: "poll-ended",
+            poll: getPollSnapshot(currentRoom.activePoll, "attendee"),
+          });
+          break;
+        }
+
+        case "toggle-poll-results": {
+          if (!sessionUserId || !currentRoom || currentRole !== "host") return;
+          if (!currentRoom.activePoll) return;
+          currentRoom.activePoll.showResults = Boolean(msg.showResults);
+          broadcastToRoom(currentRoom, {
+            type: "poll-results-toggled",
+            poll: getPollSnapshot(currentRoom.activePoll, "attendee"),
+          });
+          break;
+        }
+
+        case "cast-vote": {
+          if (!currentRoom || currentRole !== "attendee" || !currentAttendeeId) return;
+          const poll = currentRoom.activePoll;
+          if (!poll || !poll.active) {
+            ws.send(JSON.stringify({ type: "poll-vote-rejected", reason: "no-active-poll" }));
+            return;
+          }
+          const optionIndex = Number(msg.optionIndex);
+          if (isNaN(optionIndex) || optionIndex < 0 || optionIndex >= poll.options.length) return;
+          poll.votes.set(currentAttendeeId, optionIndex);
+          // Confirm vote to voter
+          ws.send(JSON.stringify({ type: "poll-vote-confirmed", optionIndex }));
+          // Broadcast updated tally to host and to attendees if showResults
+          const snapshot = getPollSnapshot(poll, "host");
+          sendToHost(currentRoom, { type: "poll-updated", poll: snapshot });
+          if (poll.showResults) {
+            broadcastToAttendees(currentRoom, { type: "poll-updated", poll: getPollSnapshot(poll, "attendee") });
+          }
           break;
         }
 

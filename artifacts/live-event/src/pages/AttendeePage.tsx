@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2 } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -46,6 +46,18 @@ export function AttendeePage() {
   const [feedbackRating, setFeedbackRating] = useState<number>(0);
   const [feedbackName, setFeedbackName] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
+  interface PollSnapshot {
+    id: string;
+    question: string;
+    options: string[];
+    counts: number[];
+    totalVotes: number;
+    showResults: boolean;
+    active: boolean;
+  }
+  const [activePoll, setActivePoll] = useState<PollSnapshot | null>(null);
+  const [myVote, setMyVote] = useState<number | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(`event-join-${attendeeId}`);
@@ -122,6 +134,36 @@ export function AttendeePage() {
           setRaisedHand(false);
           setQuestionText("");
           break;
+
+        case "poll-state": {
+          const { poll, votedIndex } = msg as { poll: PollSnapshot; votedIndex: number | null };
+          setActivePoll(poll);
+          setMyVote(votedIndex ?? null);
+          break;
+        }
+        case "poll-launched": {
+          const { poll } = msg as { poll: PollSnapshot };
+          setActivePoll(poll);
+          setMyVote(null);
+          toast.info("A poll has started — cast your vote!");
+          break;
+        }
+        case "poll-ended": {
+          const { poll } = msg as { poll: PollSnapshot };
+          setActivePoll(poll);
+          break;
+        }
+        case "poll-results-toggled":
+        case "poll-updated": {
+          const { poll } = msg as { poll: PollSnapshot };
+          setActivePoll(poll);
+          break;
+        }
+        case "poll-vote-confirmed": {
+          const { optionIndex } = msg as { optionIndex: number };
+          setMyVote(optionIndex);
+          break;
+        }
         case "stream-available":
           setStreamAvailable(true);
           break;
@@ -204,6 +246,11 @@ export function AttendeePage() {
     setRaisedHand(newValue);
     send({ type: "raise-hand", raised: newValue, questionText: newValue ? questionText.trim() : undefined });
     await patchAttendee({ raisedHand: newValue });
+  };
+
+  const handleCastVote = (optionIndex: number) => {
+    if (!activePoll?.active || myVote !== null) return;
+    send({ type: "cast-vote", optionIndex });
   };
 
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
@@ -486,6 +533,67 @@ export function AttendeePage() {
               className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <p className="text-xs text-muted-foreground text-right">{questionText.length}/500</p>
+          </div>
+        )}
+
+        {activePoll && (
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4 w-full text-left">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+              <span className="font-semibold text-sm">{activePoll.active ? "Live Poll" : "Poll Results"}</span>
+              {activePoll.active && myVote === null && (
+                <span className="ml-auto text-xs bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">Vote now</span>
+              )}
+              {myVote !== null && (
+                <span className="ml-auto text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-medium">Voted</span>
+              )}
+            </div>
+            <p className="text-sm font-medium">{activePoll.question}</p>
+            <div className="space-y-2" role="group" aria-label="Poll options">
+              {activePoll.options.map((opt, i) => {
+                const count = activePoll.counts[i] ?? 0;
+                const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
+                const voted = myVote === i;
+                const canVote = activePoll.active && myVote === null;
+                const showBar = !activePoll.active || activePoll.showResults || myVote !== null;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={!canVote}
+                    onClick={() => handleCastVote(i)}
+                    aria-pressed={voted}
+                    className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 relative overflow-hidden ${
+                      voted
+                        ? "border-primary bg-primary/10 font-semibold"
+                        : canVote
+                          ? "border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
+                          : "border-border cursor-default"
+                    }`}
+                  >
+                    {showBar && (
+                      <div
+                        className="absolute inset-0 bg-primary/8 transition-all duration-500 rounded-xl"
+                        style={{ width: `${pct}%` }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <div className="relative flex items-center justify-between gap-2">
+                      <span className="truncate">{opt}</span>
+                      {showBar && (
+                        <span className="text-xs text-muted-foreground shrink-0">{pct}%</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {(activePoll.showResults || !activePoll.active || myVote !== null) && (
+              <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""}</p>
+            )}
+            {myVote !== null && activePoll.active && !activePoll.showResults && (
+              <p className="text-xs text-muted-foreground">Your vote has been recorded. Results will be shown when the host reveals them.</p>
+            )}
           </div>
         )}
 

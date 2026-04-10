@@ -27,6 +27,11 @@ import {
   ImagePlus,
   MessageSquare,
   Star,
+  BarChart2,
+  Plus,
+  Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -37,6 +42,16 @@ interface LiveAttendee {
   raisedHandAt?: string | null;
   assignedId?: number;
   questionText?: string;
+}
+
+interface PollSnapshot {
+  id: string;
+  question: string;
+  options: string[];
+  counts: number[];
+  totalVotes: number;
+  showResults: boolean;
+  active: boolean;
 }
 
 interface EventPageProps {
@@ -53,6 +68,13 @@ export function EventPage({ eventId }: EventPageProps) {
   const [paSourceUrl, setPaSourceUrl] = useState<string | null>(null);
   const [paSourceCopied, setPaSourceCopied] = useState(false);
   const [paSourceConnected, setPaSourceConnected] = useState(false);
+
+  // Poll state
+  const [activePoll, setActivePoll] = useState<PollSnapshot | null>(null);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [pollShowResults, setPollShowResults] = useState(false);
+  const [pollCreating, setPollCreating] = useState(false);
 
   const { data: eventData, refetch: refetchEvent } = useGetEvent(eventId);
   const event = eventData?.event;
@@ -186,6 +208,16 @@ export function EventPage({ eventId }: EventPageProps) {
           setLiveAttendees(attendees);
           if (typeof msg.qaOpen === "boolean") setQaOpen(msg.qaOpen);
           if (typeof msg.paSourceConnected === "boolean") setPaSourceConnected(msg.paSourceConnected as boolean);
+          if (msg.activePoll) setActivePoll(msg.activePoll as PollSnapshot);
+          break;
+        }
+
+        case "poll-launched":
+        case "poll-ended":
+        case "poll-results-toggled":
+        case "poll-updated": {
+          const poll = msg.poll as PollSnapshot | null;
+          setActivePoll(poll ?? null);
           break;
         }
         case "attendee-joined": {
@@ -382,6 +414,29 @@ export function EventPage({ eventId }: EventPageProps) {
     } catch {
       toast.error("Failed to copy link");
     }
+  };
+
+  const handleLaunchPoll = () => {
+    const trimmedQ = pollQuestion.trim();
+    const validOptions = pollOptions.map((o) => o.trim()).filter((o) => o.length > 0);
+    if (!trimmedQ || validOptions.length < 2) {
+      toast.error("Enter a question and at least 2 options");
+      return;
+    }
+    send({ type: "launch-poll", question: trimmedQ, options: validOptions, showResults: pollShowResults });
+    setPollCreating(false);
+    setPollQuestion("");
+    setPollOptions(["", ""]);
+    setPollShowResults(false);
+  };
+
+  const handleEndPoll = () => {
+    send({ type: "end-poll" });
+  };
+
+  const handleTogglePollResults = () => {
+    if (!activePoll) return;
+    send({ type: "toggle-poll-results", showResults: !activePoll.showResults });
   };
 
   const raisedHands = liveAttendees
@@ -639,6 +694,180 @@ export function EventPage({ eventId }: EventPageProps) {
             )}
             {!qaOpen && (
               <p className="text-sm text-muted-foreground">Open Q&amp;A to allow attendees to raise their hand and ask questions.</p>
+            )}
+          </div>
+
+          {/* ─── Polls panel ─────────────────────────────────────────────── */}
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-primary" aria-hidden="true" />
+                Polls
+                {activePoll && activePoll.active && (
+                  <span className="ml-1 text-xs bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">Live</span>
+                )}
+              </h2>
+              {!activePoll?.active && !pollCreating && (
+                <button
+                  onClick={() => setPollCreating(true)}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                  New Poll
+                </button>
+              )}
+            </div>
+
+            {pollCreating && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label htmlFor="poll-question" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
+                  <input
+                    id="poll-question"
+                    type="text"
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    placeholder="What do you want to ask?"
+                    maxLength={300}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</label>
+                  {pollOptions.map((opt, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => {
+                          const next = [...pollOptions];
+                          next[idx] = e.target.value;
+                          setPollOptions(next);
+                        }}
+                        placeholder={`Option ${idx + 1}`}
+                        maxLength={200}
+                        className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      {pollOptions.length > 2 && (
+                        <button
+                          type="button"
+                          aria-label={`Remove option ${idx + 1}`}
+                          onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
+                          className="text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 rounded"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {pollOptions.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setPollOptions([...pollOptions, ""])}
+                      className="text-xs text-primary hover:underline flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                    >
+                      <Plus className="w-3 h-3" aria-hidden="true" /> Add option
+                    </button>
+                  )}
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer select-none" htmlFor="poll-show-results">
+                  <div
+                    id="poll-show-results"
+                    role="switch"
+                    tabIndex={0}
+                    aria-checked={pollShowResults}
+                    aria-label="Show live results to attendees"
+                    onClick={() => setPollShowResults((v) => !v)}
+                    onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setPollShowResults((v) => !v); } }}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${pollShowResults ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pollShowResults ? "translate-x-4" : "translate-x-0.5"}`} aria-hidden="true" />
+                  </div>
+                  <span className="text-xs text-muted-foreground">Show live results to attendees</span>
+                </label>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setPollCreating(false); setPollQuestion(""); setPollOptions(["", ""]); setPollShowResults(false); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <X className="w-3 h-3" aria-hidden="true" /> Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLaunchPoll}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activePoll && !pollCreating && (
+              <div className="space-y-3">
+                <p className="font-medium text-sm">{activePoll.question}</p>
+                <div className="space-y-2">
+                  {activePoll.options.map((opt, i) => {
+                    const count = activePoll.counts[i] ?? 0;
+                    const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
+                    return (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium truncate">{opt}</span>
+                          <span className="text-muted-foreground shrink-0 ml-2">{count} vote{count !== 1 ? "s" : ""} ({pct}%)</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden" aria-label={`${opt}: ${pct}%`}>
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                            role="meter"
+                            aria-valuenow={pct}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""} total</p>
+                {activePoll.active && (
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={handleTogglePollResults}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      {activePoll.showResults ? (
+                        <><EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> Hide from attendees</>
+                      ) : (
+                        <><Eye className="w-3.5 h-3.5" aria-hidden="true" /> Show to attendees</>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleEndPoll}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                    >
+                      End Poll
+                    </button>
+                  </div>
+                )}
+                {!activePoll.active && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Poll ended</span>
+                    <button
+                      onClick={() => setPollCreating(true)}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Plus className="w-3 h-3" aria-hidden="true" /> New Poll
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!activePoll && !pollCreating && (
+              <p className="text-sm text-muted-foreground">Create a poll to collect real-time votes from your attendees.</p>
             )}
           </div>
 

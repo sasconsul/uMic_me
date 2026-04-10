@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. This is a full-stack real-time live event management platform. Hosts log in via Clerk auth (Google, email, GitHub), create events with QR codes, stream audio via WebRTC to all attendee devices and a PA system, and run Q&A sessions with a hand-raise queue.
+pnpm workspace monorepo using TypeScript. This is a full-stack real-time live event management platform. Hosts log in via Clerk auth (Google, email, GitHub), create events with QR codes, stream audio via WebRTC to all attendee devices and a PA system, run Q&A sessions with a hand-raise queue, and launch live polls with multiple-choice answers.
 
 ## Stack
 
