@@ -319,6 +319,7 @@ export function setupWebSocketServer(server: Server) {
             ws.send(JSON.stringify({ type: "error", message: "Forbidden: not event owner" }));
             return;
           }
+          sessionUserId = resolvedUserId;
           logger.info({ eventId, resolvedUserId }, "join-host accepted");
 
           let room = rooms.get(eventId);

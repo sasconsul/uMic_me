@@ -56,6 +56,7 @@ export function useWebSocket({
         setConnected(true);
         if (role === "host") {
           const token = getHostTokenRef.current ? await getHostTokenRef.current() : null;
+          if (ws.readyState !== WebSocket.OPEN) return;
           ws.send(JSON.stringify({ type: "join-host", eventId, token }));
         } else {
           ws.send(
