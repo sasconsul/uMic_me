@@ -47,7 +47,7 @@ artifacts-monorepo/
 - Clerk via `@clerk/express` on the server (`clerkMiddleware()` in `app.ts`)
 - Clerk proxy middleware at `/api/__clerk` for production cookie-based auth
 - `requireAuth` middleware in `events.ts` extracts `req.userId` via `getAuth(req)`
-- WebSocket host auth uses `createClerkClient().authenticateRequest()` on upgrade request
+- WebSocket host auth uses `wsAuth.ts` module (`getSessionUserFromReq` on upgrade, `verifyHostToken` for JWT fallback)
 - Frontend uses `@clerk/react`: `useAuth()`, `useUser()`, `useClerk()`
 - Sign-in/up pages at `/sign-in` and `/sign-up` with Clerk's embedded `<SignIn>`/`<SignUp>` components
 
@@ -102,14 +102,25 @@ React + Vite frontend.
 - `ObjectUploader` component + `useUpload()` hook for file uploads via presigned URLs
 
 ### `tests/` (`@workspace/tests`)
-- Playwright E2E smoke tests (23 tests across 6 spec files)
-- Vitest unit tests (13 tests: generatePaSourceToken, getPaSourceToken, useAudioBroadcast)
+- Playwright E2E tests (54 tests across 8 spec files: smoke, landing, join, demos, PA source, umic-deck, poll-sets API, attendee poll/QA UI)
+- Vitest unit tests (55 tests across 6 files):
+  - `pollSnapshot.test.ts` — 13 tests for `getPollSnapshot` and `getAttendeeList` helpers
+  - `pollingQaFlow.test.ts` — 13 broadcast/snapshot helper tests
+  - `wsIntegration.test.ts` — 16 WebSocket integration tests (real WS server, mocked auth/DB)
+  - `generatePaSourceToken.test.ts` — 4 tests
+  - `getPaSourceToken.test.ts` — 4 tests
+  - `useAudioBroadcast.test.ts` — 5 tests
 - `pnpm --filter @workspace/tests run test:e2e` — run E2E tests (uses system Chromium via `executablePath`)
 - `pnpm --filter @workspace/tests run test:unit` — run unit tests
+- Vitest config has 3 projects: `node` (pure unit), `ws-integration` (WebSocket integration), `jsdom` (React hooks)
+- `@workspace/db` is aliased in vitest.config.ts to resolve correctly for mocking
+
+### `artifacts/api-server/src/lib/wsAuth.ts`
+- Extracted Clerk auth functions (`getSessionUserFromReq`, `verifyHostToken`) from `websocket.ts` into a separate module for testability
 
 ## Validation Commands
 
 Three named validation commands are registered:
 - **typecheck** — `pnpm -r --filter='!@workspace/tests' exec tsc --noEmit`
-- **unit-tests** — `pnpm --filter @workspace/tests run test:unit` (13 tests)
-- **regression** — `pnpm --filter @workspace/tests run test:e2e` (23 E2E tests)
+- **unit-tests** — `pnpm --filter @workspace/tests run test:unit` (55 tests)
+- **regression** — `pnpm --filter @workspace/tests run test:e2e` (54 E2E tests)

@@ -7,6 +7,14 @@ import { randomUUID } from "crypto";
 const router: IRouter = Router();
 
 function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (process.env.NODE_ENV !== "production" && process.env.E2E_TEST_AUTH === "1") {
+    const testUserId = req.headers["x-test-user-id"];
+    if (typeof testUserId === "string" && testUserId) {
+      req.userId = testUserId;
+      next();
+      return;
+    }
+  }
   const auth = getAuth(req);
   const userId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
   if (!userId) {

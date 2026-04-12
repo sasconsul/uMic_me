@@ -3,11 +3,11 @@ import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
-import { createClerkClient } from "@clerk/express";
 import { db, eventsTable, attendeesTable, pollResponsesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { getSessionUserFromReq, verifyHostToken } from "./wsAuth";
 
-interface RoomClient {
+export interface RoomClient {
   ws: WebSocket;
   role: "host" | "attendee" | "pa-source";
   attendeeId?: number;
@@ -19,17 +19,13 @@ interface RoomClient {
   questionText?: string;
 }
 
-interface Poll {
+export interface Poll {
   id: string;
-  /** DB id of the poll_questions row, if launched from a saved question set */
   pollQuestionId?: number;
   question: string;
   options: string[];
-  /** attendeeId → option index */
   votes: Map<number, number>;
-  /** attendeeId → attendee display name (for CSV export) */
   attendeeNames: Map<number, string | null>;
-  /** Whether attendees can see the live tally */
   showResults: boolean;
   active: boolean;
 }
@@ -39,25 +35,16 @@ interface DirectedQuestion {
   responses: Array<{ attendeeId: number; attendeeName: string | null; response: string }>;
 }
 
-interface Room {
+export interface Room {
   eventId: number;
-  /**
-   * Set to the verified host's userId once the host joins.
-   * Empty string means the room was created by attendees before host arrived.
-   */
   hostUserId: string;
   hostWs?: WebSocket;
   paSourceWs?: WebSocket;
   clients: Map<WebSocket, RoomClient>;
-  /** Whether the host has opened Q&A — attendees can only raise hands when true */
   qaOpen: boolean;
-  /** When true, attendees' mics start muted when called on; host must send unmute-speaker */
   muteUntilCalled: boolean;
-  /** Whether the host is currently broadcasting audio */
   isBroadcasting: boolean;
-  /** Current active poll, if any */
   activePoll?: Poll;
-  /** Current active directed (open-ended) question, if any */
   activeDirectedQuestion?: DirectedQuestion;
 }
 
@@ -78,7 +65,7 @@ export function getPaSourceToken(eventId: number): string | undefined {
 
 const rooms = new Map<number, Room>();
 
-function broadcastToRoom(room: Room, message: object, exclude?: WebSocket) {
+export function broadcastToRoom(room: Room, message: object, exclude?: WebSocket) {
   const data = JSON.stringify(message);
   room.clients.forEach((_, ws) => {
     if (ws !== exclude && ws.readyState === WebSocket.OPEN) {
@@ -87,7 +74,7 @@ function broadcastToRoom(room: Room, message: object, exclude?: WebSocket) {
   });
 }
 
-function broadcastToAttendees(room: Room, message: object, exclude?: WebSocket) {
+export function broadcastToAttendees(room: Room, message: object, exclude?: WebSocket) {
   const data = JSON.stringify(message);
   room.clients.forEach((client, ws) => {
     if (client.role === "attendee" && ws !== exclude && ws.readyState === WebSocket.OPEN) {
@@ -96,13 +83,13 @@ function broadcastToAttendees(room: Room, message: object, exclude?: WebSocket) 
   });
 }
 
-function sendToHost(room: Room, message: object) {
+export function sendToHost(room: Room, message: object) {
   if (room.hostWs && room.hostWs.readyState === WebSocket.OPEN) {
     room.hostWs.send(JSON.stringify(message));
   }
 }
 
-function sendToAttendee(room: Room, attendeeId: number, message: object) {
+export function sendToAttendee(room: Room, attendeeId: number, message: object) {
   room.clients.forEach((client, ws) => {
     if (client.role === "attendee" && client.attendeeId === attendeeId && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(message));
@@ -110,7 +97,7 @@ function sendToAttendee(room: Room, attendeeId: number, message: object) {
   });
 }
 
-function getPollSnapshot(poll: Poll, role: "host" | "attendee") {
+export function getPollSnapshot(poll: Poll, role: "host" | "attendee") {
   const tally = poll.options.map((_, i) => ({ index: i, count: 0 }));
   poll.votes.forEach((optionIndex) => {
     tally[optionIndex].count++;
@@ -128,7 +115,7 @@ function getPollSnapshot(poll: Poll, role: "host" | "attendee") {
   };
 }
 
-function getAttendeeList(room: Room) {
+export function getAttendeeList(room: Room) {
   const attendees: Array<{ attendeeId: number; assignedId?: number; attendeeName: string | null; raisedHand: boolean; raisedHandAt: string | null; questionText?: string }> = [];
   room.clients.forEach((client) => {
     if (client.role === "attendee" && client.attendeeId !== undefined) {
@@ -153,28 +140,6 @@ function getAttendeeList(room: Room) {
   return attendees;
 }
 
-async function getSessionUserFromReq(req: IncomingMessage): Promise<{ id: string } | null> {
-  try {
-    const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-    const url = new URL(req.url ?? "/", "http://localhost");
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val != null) headers.set(key, Array.isArray(val) ? val.join(",") : val);
-    }
-    const request = new Request(url.toString(), { headers });
-    const result = await clerkClient.authenticateRequest(request, {
-      secretKey: process.env.CLERK_SECRET_KEY,
-    });
-    if (result.isSignedIn) {
-      const auth = result.toAuth();
-      const userId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
-      return userId ? { id: userId } : null;
-    }
-  } catch {
-    // unauthenticated
-  }
-  return null;
-}
 
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
@@ -276,26 +241,10 @@ export function setupWebSocketServer(server: Server) {
 
       switch (type) {
         case "join-host": {
-          // Prefer cookie-based Clerk auth; fall back to explicit JWT token
-          // sent in the message (needed when the proxy strips cookies on WS upgrades).
           let resolvedUserId = sessionUserId;
           if (!resolvedUserId && msg.token) {
             try {
-              const clerkClient = createClerkClient({
-                secretKey: process.env.CLERK_SECRET_KEY,
-                publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-              });
-              const tokenReq = new Request("http://localhost/", {
-                headers: { Authorization: `Bearer ${msg.token as string}` },
-              });
-              const tokenResult = await clerkClient.authenticateRequest(tokenReq, {
-                secretKey: process.env.CLERK_SECRET_KEY,
-                publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-              });
-              if (tokenResult.isSignedIn) {
-                const auth = tokenResult.toAuth();
-                resolvedUserId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId || null;
-              }
+              resolvedUserId = await verifyHostToken(msg.token as string);
             } catch (e) {
               logger.warn({ err: e }, "join-host token verification failed");
             }
