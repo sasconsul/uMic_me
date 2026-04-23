@@ -316,6 +316,113 @@ export const GetHostStatsResponse = zod.object({
 });
 
 /**
+ * @summary List all feature requests, sorted by vote count descending
+ */
+export const ListFeatureRequestsQueryParams = zod.object({
+  status: zod.enum(["open", "planned", "done", "all"]).optional(),
+});
+
+export const ListFeatureRequestsResponse = zod.object({
+  requests: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      description: zod.string(),
+      status: zod.enum(["open", "planned", "done"]),
+      voteCount: zod.number(),
+      hasVoted: zod.boolean(),
+      submittedBy: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Submit a new feature request (public)
+ */
+export const createFeatureRequestBodyTitleMin = 5;
+export const createFeatureRequestBodyTitleMax = 120;
+
+export const createFeatureRequestBodyDescriptionMin = 10;
+export const createFeatureRequestBodyDescriptionMax = 1000;
+
+export const CreateFeatureRequestBody = zod.object({
+  title: zod
+    .string()
+    .min(createFeatureRequestBodyTitleMin)
+    .max(createFeatureRequestBodyTitleMax),
+  description: zod
+    .string()
+    .min(createFeatureRequestBodyDescriptionMin)
+    .max(createFeatureRequestBodyDescriptionMax),
+  submittedBy: zod.string().nullish(),
+  hp: zod.string().nullish(),
+});
+
+/**
+ * @summary Get aggregate stats for the feature board
+ */
+export const GetFeatureBoardStatsResponse = zod.object({
+  totalRequests: zod.number(),
+  totalVotes: zod.number(),
+  openCount: zod.number(),
+  plannedCount: zod.number(),
+  doneCount: zod.number(),
+  topRequest: zod.object({
+    id: zod.number(),
+    title: zod.string(),
+    description: zod.string(),
+    status: zod.enum(["open", "planned", "done"]),
+    voteCount: zod.number(),
+    hasVoted: zod.boolean(),
+    submittedBy: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Cast or retract a vote on a feature request (identified by voter fingerprint)
+ */
+export const VoteFeatureRequestParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const voteFeatureRequestBodyVoterFingerprintMin = 8;
+
+export const VoteFeatureRequestBody = zod.object({
+  voterFingerprint: zod.string().min(voteFeatureRequestBodyVoterFingerprintMin),
+});
+
+export const VoteFeatureRequestResponse = zod.object({
+  voteCount: zod.number(),
+  hasVoted: zod.boolean(),
+});
+
+/**
+ * @summary Update a feature request status (admin — requires secret key header)
+ */
+export const UpdateFeatureRequestStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateFeatureRequestStatusBody = zod.object({
+  status: zod.enum(["open", "planned", "done"]),
+});
+
+export const UpdateFeatureRequestStatusResponse = zod.object({
+  request: zod.object({
+    id: zod.number(),
+    title: zod.string(),
+    description: zod.string(),
+    status: zod.enum(["open", "planned", "done"]),
+    voteCount: zod.number(),
+    hasVoted: zod.boolean(),
+    submittedBy: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
  * @summary List all tracked projects
  */
 export const ListTrackedProjectsResponse = zod.object({

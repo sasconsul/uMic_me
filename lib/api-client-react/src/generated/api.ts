@@ -22,6 +22,7 @@ import type {
   CostDashboardResponse,
   CreateEventBody,
   CreateExpenseEntryBody,
+  CreateFeatureRequestBody,
   CreateTimeEntryBody,
   CreateTrackedProjectBody,
   DeleteSuccess,
@@ -32,11 +33,15 @@ import type {
   EventStatsResponse,
   ExpenseEntryListResponse,
   ExpenseEntryResponse,
+  FeatureBoardStatsResponse,
+  FeatureRequestListResponse,
+  FeatureRequestResponse,
   FeedbackListResponse,
   HealthStatus,
   HostStatsResponse,
   JoinEventBody,
   JoinEventResponse,
+  ListFeatureRequestsParams,
   SubmitFeedback201,
   SubmitFeedbackBody,
   TimeEntryListResponse,
@@ -46,10 +51,13 @@ import type {
   UpdateAttendeeBody,
   UpdateEventBody,
   UpdateExpenseEntryBody,
+  UpdateFeatureRequestStatusBody,
   UpdateTimeEntryBody,
   UpdateTrackedProjectBody,
   UploadUrlRequest,
   UploadUrlResponse,
+  VoteFeatureRequestBody,
+  VoteFeatureRequestResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1587,6 +1595,449 @@ export function useGetHostStats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all feature requests, sorted by vote count descending
+ */
+export const getListFeatureRequestsUrl = (
+  params?: ListFeatureRequestsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/feature-requests?${stringifiedParams}`
+    : `/api/feature-requests`;
+};
+
+export const listFeatureRequests = async (
+  params?: ListFeatureRequestsParams,
+  options?: RequestInit,
+): Promise<FeatureRequestListResponse> => {
+  return customFetch<FeatureRequestListResponse>(
+    getListFeatureRequestsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListFeatureRequestsQueryKey = (
+  params?: ListFeatureRequestsParams,
+) => {
+  return [`/api/feature-requests`, ...(params ? [params] : [])] as const;
+};
+
+export const getListFeatureRequestsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFeatureRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListFeatureRequestsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFeatureRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFeatureRequestsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listFeatureRequests>>
+  > = ({ signal }) =>
+    listFeatureRequests(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFeatureRequests>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFeatureRequestsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFeatureRequests>>
+>;
+export type ListFeatureRequestsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all feature requests, sorted by vote count descending
+ */
+
+export function useListFeatureRequests<
+  TData = Awaited<ReturnType<typeof listFeatureRequests>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListFeatureRequestsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFeatureRequests>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFeatureRequestsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Submit a new feature request (public)
+ */
+export const getCreateFeatureRequestUrl = () => {
+  return `/api/feature-requests`;
+};
+
+export const createFeatureRequest = async (
+  createFeatureRequestBody: CreateFeatureRequestBody,
+  options?: RequestInit,
+): Promise<FeatureRequestResponse> => {
+  return customFetch<FeatureRequestResponse>(getCreateFeatureRequestUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createFeatureRequestBody),
+  });
+};
+
+export const getCreateFeatureRequestMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFeatureRequest>>,
+    TError,
+    { data: BodyType<CreateFeatureRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFeatureRequest>>,
+  TError,
+  { data: BodyType<CreateFeatureRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["createFeatureRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFeatureRequest>>,
+    { data: BodyType<CreateFeatureRequestBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createFeatureRequest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFeatureRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFeatureRequest>>
+>;
+export type CreateFeatureRequestMutationBody =
+  BodyType<CreateFeatureRequestBody>;
+export type CreateFeatureRequestMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Submit a new feature request (public)
+ */
+export const useCreateFeatureRequest = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFeatureRequest>>,
+    TError,
+    { data: BodyType<CreateFeatureRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createFeatureRequest>>,
+  TError,
+  { data: BodyType<CreateFeatureRequestBody> },
+  TContext
+> => {
+  return useMutation(getCreateFeatureRequestMutationOptions(options));
+};
+
+/**
+ * @summary Get aggregate stats for the feature board
+ */
+export const getGetFeatureBoardStatsUrl = () => {
+  return `/api/feature-requests/stats`;
+};
+
+export const getFeatureBoardStats = async (
+  options?: RequestInit,
+): Promise<FeatureBoardStatsResponse> => {
+  return customFetch<FeatureBoardStatsResponse>(getGetFeatureBoardStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFeatureBoardStatsQueryKey = () => {
+  return [`/api/feature-requests/stats`] as const;
+};
+
+export const getGetFeatureBoardStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFeatureBoardStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFeatureBoardStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFeatureBoardStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getFeatureBoardStats>>
+  > = ({ signal }) => getFeatureBoardStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFeatureBoardStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFeatureBoardStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFeatureBoardStats>>
+>;
+export type GetFeatureBoardStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get aggregate stats for the feature board
+ */
+
+export function useGetFeatureBoardStats<
+  TData = Awaited<ReturnType<typeof getFeatureBoardStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFeatureBoardStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFeatureBoardStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Cast or retract a vote on a feature request (identified by voter fingerprint)
+ */
+export const getVoteFeatureRequestUrl = (id: number) => {
+  return `/api/feature-requests/${id}/vote`;
+};
+
+export const voteFeatureRequest = async (
+  id: number,
+  voteFeatureRequestBody: VoteFeatureRequestBody,
+  options?: RequestInit,
+): Promise<VoteFeatureRequestResponse> => {
+  return customFetch<VoteFeatureRequestResponse>(getVoteFeatureRequestUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(voteFeatureRequestBody),
+  });
+};
+
+export const getVoteFeatureRequestMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof voteFeatureRequest>>,
+    TError,
+    { id: number; data: BodyType<VoteFeatureRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof voteFeatureRequest>>,
+  TError,
+  { id: number; data: BodyType<VoteFeatureRequestBody> },
+  TContext
+> => {
+  const mutationKey = ["voteFeatureRequest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof voteFeatureRequest>>,
+    { id: number; data: BodyType<VoteFeatureRequestBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return voteFeatureRequest(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VoteFeatureRequestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof voteFeatureRequest>>
+>;
+export type VoteFeatureRequestMutationBody = BodyType<VoteFeatureRequestBody>;
+export type VoteFeatureRequestMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Cast or retract a vote on a feature request (identified by voter fingerprint)
+ */
+export const useVoteFeatureRequest = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof voteFeatureRequest>>,
+    TError,
+    { id: number; data: BodyType<VoteFeatureRequestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof voteFeatureRequest>>,
+  TError,
+  { id: number; data: BodyType<VoteFeatureRequestBody> },
+  TContext
+> => {
+  return useMutation(getVoteFeatureRequestMutationOptions(options));
+};
+
+/**
+ * @summary Update a feature request status (admin — requires secret key header)
+ */
+export const getUpdateFeatureRequestStatusUrl = (id: number) => {
+  return `/api/feature-requests/${id}/status`;
+};
+
+export const updateFeatureRequestStatus = async (
+  id: number,
+  updateFeatureRequestStatusBody: UpdateFeatureRequestStatusBody,
+  options?: RequestInit,
+): Promise<FeatureRequestResponse> => {
+  return customFetch<FeatureRequestResponse>(
+    getUpdateFeatureRequestStatusUrl(id),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateFeatureRequestStatusBody),
+    },
+  );
+};
+
+export const getUpdateFeatureRequestStatusMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFeatureRequestStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateFeatureRequestStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFeatureRequestStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateFeatureRequestStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updateFeatureRequestStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFeatureRequestStatus>>,
+    { id: number; data: BodyType<UpdateFeatureRequestStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateFeatureRequestStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFeatureRequestStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFeatureRequestStatus>>
+>;
+export type UpdateFeatureRequestStatusMutationBody =
+  BodyType<UpdateFeatureRequestStatusBody>;
+export type UpdateFeatureRequestStatusMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Update a feature request status (admin — requires secret key header)
+ */
+export const useUpdateFeatureRequestStatus = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFeatureRequestStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateFeatureRequestStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateFeatureRequestStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateFeatureRequestStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdateFeatureRequestStatusMutationOptions(options));
+};
 
 /**
  * @summary List all tracked projects

@@ -17,6 +17,8 @@ tags:
     description: Attendee join and management.
   - name: CostTracker
     description: Project cost and time tracking.
+  - name: FeatureBoard
+    description: Public feature request board with voting.
 paths:
   /healthz:
     get:
@@ -518,6 +520,135 @@ paths:
                 $ref: '#/components/schemas/HostStatsResponse'
         '401':
           description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /feature-requests:
+    get:
+      tags: [FeatureBoard]
+      operationId: listFeatureRequests
+      summary: List all feature requests, sorted by vote count descending
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, planned, done, all]
+      responses:
+        '200':
+          description: List of feature requests.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureRequestListResponse'
+    post:
+      tags: [FeatureBoard]
+      operationId: createFeatureRequest
+      summary: Submit a new feature request (public)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeatureRequestBody'
+      responses:
+        '201':
+          description: Feature request created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureRequestResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /feature-requests/stats:
+    get:
+      tags: [FeatureBoard]
+      operationId: getFeatureBoardStats
+      summary: Get aggregate stats for the feature board
+      responses:
+        '200':
+          description: Feature board stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureBoardStatsResponse'
+
+  /feature-requests/{id}/vote:
+    post:
+      tags: [FeatureBoard]
+      operationId: voteFeatureRequest
+      summary: Cast or retract a vote on a feature request (identified by voter fingerprint)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteFeatureRequestBody'
+      responses:
+        '200':
+          description: Vote recorded or retracted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteFeatureRequestResponse'
+        '404':
+          description: Feature request not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /feature-requests/{id}/status:
+    patch:
+      tags: [FeatureBoard]
+      operationId: updateFeatureRequestStatus
+      summary: Update a feature request status (admin — requires secret key header)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeatureRequestStatusBody'
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureRequestResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Feature request not found.
           content:
             application/json:
               schema:
@@ -1375,6 +1506,104 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExpenseEntry'
+
+    FeatureRequest:
+      type: object
+      required: [id, title, description, status, voteCount, hasVoted, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [open, planned, done]
+        voteCount:
+          type: integer
+        hasVoted:
+          type: boolean
+        submittedBy:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    FeatureRequestResponse:
+      type: object
+      required: [request]
+      properties:
+        request:
+          $ref: '#/components/schemas/FeatureRequest'
+
+    FeatureRequestListResponse:
+      type: object
+      required: [requests]
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureRequest'
+
+    CreateFeatureRequestBody:
+      type: object
+      required: [title, description]
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 120
+        description:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        submittedBy:
+          type: [string, 'null']
+        hp:
+          type: [string, 'null']
+
+    VoteFeatureRequestBody:
+      type: object
+      required: [voterFingerprint]
+      properties:
+        voterFingerprint:
+          type: string
+          minLength: 8
+
+    VoteFeatureRequestResponse:
+      type: object
+      required: [voteCount, hasVoted]
+      properties:
+        voteCount:
+          type: integer
+        hasVoted:
+          type: boolean
+
+    UpdateFeatureRequestStatusBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, planned, done]
+
+    FeatureBoardStatsResponse:
+      type: object
+      required: [totalRequests, totalVotes, openCount, plannedCount, doneCount, topRequest]
+      properties:
+        totalRequests:
+          type: integer
+        totalVotes:
+          type: integer
+        openCount:
+          type: integer
+        plannedCount:
+          type: integer
+        doneCount:
+          type: integer
+        topRequest:
+          $ref: '#/components/schemas/FeatureRequest'
 
     CostDashboardProjectSummary:
       type: object

@@ -27,6 +27,7 @@ artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API + WebSocket server (port via $PORT, paths: /api /ws)
 │   ├── cost-tracker/       # Project Cost Tracker - React + Vite (path: /cost-tracker/)
+│   ├── feature-board/      # Public Feature Request Board - React + Vite (path: /feature-board/)
 │   ├── live-event/         # React + Vite frontend (port 18558, path: /)
 │   └── umic-deck/          # Slides presentation artifact (path: /umic-deck/)
 ├── lib/

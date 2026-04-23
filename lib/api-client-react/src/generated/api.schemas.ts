@@ -320,6 +320,84 @@ export interface ExpenseEntryListResponse {
   entries: ExpenseEntry[];
 }
 
+export type FeatureRequestStatus =
+  (typeof FeatureRequestStatus)[keyof typeof FeatureRequestStatus];
+
+export const FeatureRequestStatus = {
+  open: "open",
+  planned: "planned",
+  done: "done",
+} as const;
+
+export interface FeatureRequest {
+  id: number;
+  title: string;
+  description: string;
+  status: FeatureRequestStatus;
+  voteCount: number;
+  hasVoted: boolean;
+  /** @nullable */
+  submittedBy?: string | null;
+  createdAt: string;
+}
+
+export interface FeatureRequestResponse {
+  request: FeatureRequest;
+}
+
+export interface FeatureRequestListResponse {
+  requests: FeatureRequest[];
+}
+
+export interface CreateFeatureRequestBody {
+  /**
+   * @minLength 5
+   * @maxLength 120
+   */
+  title: string;
+  /**
+   * @minLength 10
+   * @maxLength 1000
+   */
+  description: string;
+  /** @nullable */
+  submittedBy?: string | null;
+  /** @nullable */
+  hp?: string | null;
+}
+
+export interface VoteFeatureRequestBody {
+  /** @minLength 8 */
+  voterFingerprint: string;
+}
+
+export interface VoteFeatureRequestResponse {
+  voteCount: number;
+  hasVoted: boolean;
+}
+
+export type UpdateFeatureRequestStatusBodyStatus =
+  (typeof UpdateFeatureRequestStatusBodyStatus)[keyof typeof UpdateFeatureRequestStatusBodyStatus];
+
+export const UpdateFeatureRequestStatusBodyStatus = {
+  open: "open",
+  planned: "planned",
+  done: "done",
+} as const;
+
+export interface UpdateFeatureRequestStatusBody {
+  status: UpdateFeatureRequestStatusBodyStatus;
+}
+
+export interface FeatureBoardStatsResponse {
+  totalRequests: number;
+  totalVotes: number;
+  openCount: number;
+  plannedCount: number;
+  doneCount: number;
+  topRequest: FeatureRequest;
+}
+
 export interface CostDashboardProjectSummary {
   projectId: number;
   projectName: string;
@@ -336,3 +414,17 @@ export interface CostDashboardResponse {
 export type SubmitFeedback201 = {
   ok?: boolean;
 };
+
+export type ListFeatureRequestsParams = {
+  status?: ListFeatureRequestsStatus;
+};
+
+export type ListFeatureRequestsStatus =
+  (typeof ListFeatureRequestsStatus)[keyof typeof ListFeatureRequestsStatus];
+
+export const ListFeatureRequestsStatus = {
+  open: "open",
+  planned: "planned",
+  done: "done",
+  all: "all",
+} as const;
