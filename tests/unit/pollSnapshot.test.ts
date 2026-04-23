@@ -121,6 +121,26 @@ describe("getPollSnapshot", () => {
     expect(Object.keys(hostSnap).sort()).toEqual(Object.keys(attendeeSnap).sort());
   });
 
+  it("preserves pollType field for feature-board polls", () => {
+    const poll = makePoll({ pollType: "feature-board" });
+    const snap = getPollSnapshot(poll, "attendee");
+    expect(snap.pollType).toBe("feature-board");
+  });
+
+  it("preserves pollType as undefined for standard polls", () => {
+    const poll = makePoll();
+    const snap = getPollSnapshot(poll, "attendee");
+    expect(snap.pollType).toBeUndefined();
+  });
+
+  it("preserves pollType in snapshot for both host and attendee roles", () => {
+    const poll = makePoll({ pollType: "feature-board" });
+    const hostSnap = getPollSnapshot(poll, "host");
+    const attendeeSnap = getPollSnapshot(poll, "attendee");
+    expect(hostSnap.pollType).toBe("feature-board");
+    expect(attendeeSnap.pollType).toBe("feature-board");
+  });
+
   it("handles a poll with many voters on a single option", () => {
     const votes = new Map<number, number>();
     for (let i = 1; i <= 100; i++) votes.set(i, 1);

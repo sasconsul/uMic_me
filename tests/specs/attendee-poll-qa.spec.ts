@@ -345,6 +345,80 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
 
     await expect(raiseBtn).toBeDisabled();
   });
+
+  test("poll-launched with pollType feature-board shows Feature Board heading and prompt", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-fb-1",
+        pollType: "feature-board",
+        question: "Submit your feature ideas!",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.getByText("Feature Board", { exact: true })).toBeVisible();
+    await expect(page.locator("text=Submit your feature ideas!")).toBeVisible();
+    await expect(page.locator("a", { hasText: "Open Feature Board" })).toBeVisible();
+  });
+
+  test("poll-launched with pollType feature-board does not show vote buttons or poll options", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-fb-2",
+        pollType: "feature-board",
+        question: "Vote for features you want!",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.getByText("Feature Board", { exact: true })).toBeVisible();
+    expect(await page.locator("[role='group'][aria-label='Poll options']").count()).toBe(0);
+    expect(await page.locator("text=Live Poll").count()).toBe(0);
+    expect(await page.locator("text=Vote now").count()).toBe(0);
+  });
+
+  test("poll-launched with pollType feature-board Open Feature Board link points to /feature-board/", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-fb-3",
+        pollType: "feature-board",
+        question: "Share your ideas",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    const link = page.locator("a", { hasText: "Open Feature Board" });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", "/feature-board/");
+    await expect(link).toHaveAttribute("target", "_blank");
+  });
 });
 
 test.describe("Attendee Page — without stored join data", () => {
