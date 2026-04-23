@@ -155,12 +155,20 @@ export function AttendeePage() {
           const { poll } = msg as { poll: PollSnapshot };
           setActivePoll(poll);
           setMyVote(null);
-          toast.info("A poll has started — cast your vote!");
+          if (poll.pollType === "feature-board") {
+            toast.info("The host shared the Feature Board — check it out!");
+          } else {
+            toast.info("A poll has started — cast your vote!");
+          }
           break;
         }
         case "poll-ended": {
           const { poll } = msg as { poll: PollSnapshot };
-          setActivePoll(poll);
+          if (poll.pollType === "feature-board") {
+            setActivePoll(null);
+          } else {
+            setActivePoll(poll);
+          }
           break;
         }
         case "poll-results-toggled":
