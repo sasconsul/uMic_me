@@ -419,6 +419,46 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     await expect(link).toHaveAttribute("href", "/feature-board/");
     await expect(link).toHaveAttribute("target", "_blank");
   });
+
+  test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-fb-end",
+        pollType: "feature-board",
+        question: "Submit your feature ideas!",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.getByText("Feature Board", { exact: true })).toBeVisible();
+    await expect(page.locator("a", { hasText: "Open Feature Board" })).toBeVisible();
+
+    await sendWsMessage(page, {
+      type: "poll-ended",
+      poll: {
+        id: "poll-fb-end",
+        pollType: "feature-board",
+        question: "Submit your feature ideas!",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: false,
+      },
+    });
+
+    await expect(page.getByText("Feature Board", { exact: true })).toHaveCount(0);
+    await expect(page.locator("a", { hasText: "Open Feature Board" })).toHaveCount(0);
+  });
 });
 
 test.describe("Attendee Page — without stored join data", () => {
