@@ -420,6 +420,30 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     await expect(link).toHaveAttribute("target", "_blank");
   });
 
+  test("poll-launched with pollType feature-board shows toast notification", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-fb-toast",
+        pollType: "feature-board",
+        question: "Share your ideas!",
+        options: [],
+        counts: [],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(
+      page.locator("text=The host shared the Feature Board — check it out!")
+    ).toBeVisible({ timeout: 5000 });
+  });
+
   test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
