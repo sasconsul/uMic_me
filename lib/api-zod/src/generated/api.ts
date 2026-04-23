@@ -52,19 +52,6 @@ export const GetStorageObjectParams = zod.object({
 });
 
 /**
- * Flyer display preferences stored per-event.
- */
-export const FlyerOptionsSchema = zod.object({
-  colorScheme: zod.enum(["light", "dark", "custom"]).optional(),
-  accentColor: zod.string().optional(),
-  showLogo: zod.boolean().optional(),
-  showPromoText: zod.boolean().optional(),
-  showStartTime: zod.boolean().optional(),
-  showUrl: zod.boolean().optional(),
-  layout: zod.enum(["portrait", "landscape"]).optional(),
-}).nullish();
-
-/**
  * @summary List events for the authenticated host
  */
 export const ListEventsResponse = zod.object({
@@ -79,7 +66,7 @@ export const ListEventsResponse = zod.object({
       status: zod.enum(["pending", "live", "closed"]),
       qrCodeToken: zod.string(),
       flyerTagline: zod.string().nullish(),
-      flyerOptions: FlyerOptionsSchema,
+      flyerOptions: zod.object({}).passthrough().nullish(),
       createdAt: zod.coerce.date(),
     }),
   ),
@@ -95,7 +82,7 @@ export const CreateEventBody = zod.object({
   promoText: zod.string().nullish(),
   startTime: zod.coerce.date().nullish(),
   flyerTagline: zod.string().nullish(),
-  flyerOptions: FlyerOptionsSchema,
+  flyerOptions: zod.object({}).passthrough().nullish(),
 });
 
 /**
@@ -116,7 +103,7 @@ export const GetEventResponse = zod.object({
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
     flyerTagline: zod.string().nullish(),
-    flyerOptions: FlyerOptionsSchema,
+    flyerOptions: zod.object({}).passthrough().nullish(),
     createdAt: zod.coerce.date(),
   }),
 });
@@ -135,7 +122,7 @@ export const UpdateEventBody = zod.object({
   startTime: zod.coerce.date().nullish(),
   status: zod.enum(["pending", "live", "closed"]).optional(),
   flyerTagline: zod.string().nullish(),
-  flyerOptions: FlyerOptionsSchema,
+  flyerOptions: zod.object({}).passthrough().nullish(),
 });
 
 export const UpdateEventResponse = zod.object({
@@ -149,21 +136,9 @@ export const UpdateEventResponse = zod.object({
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
     flyerTagline: zod.string().nullish(),
-    flyerOptions: FlyerOptionsSchema,
+    flyerOptions: zod.object({}).passthrough().nullish(),
     createdAt: zod.coerce.date(),
   }),
-});
-
-/**
- * @summary Duplicate an event for a future date
- */
-export const DuplicateEventParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const DuplicateEventBody = zod.object({
-  title: zod.string().min(1),
-  startTime: zod.coerce.date().nullish(),
 });
 
 /**
@@ -175,6 +150,53 @@ export const DeleteEventParams = zod.object({
 
 export const DeleteEventResponse = zod.object({
   success: zod.boolean(),
+});
+
+/**
+ * @summary Duplicate an event
+ */
+export const DuplicateEventParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DuplicateEventBody = zod.object({
+  title: zod.string().min(1),
+  startTime: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Submit anonymous feedback for an event
+ */
+export const SubmitFeedbackParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const SubmitFeedbackBody = zod.object({
+  message: zod.string().min(1),
+  rating: zod.number().nullish(),
+  displayName: zod.string().nullish(),
+  hp: zod.string().nullish(),
+});
+
+/**
+ * @summary List feedback for an event
+ */
+export const ListFeedbackParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListFeedbackResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      eventId: zod.number(),
+      attendeeId: zod.number().nullish(),
+      displayName: zod.string().nullish(),
+      message: zod.string(),
+      rating: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
 });
 
 /**
@@ -250,7 +272,7 @@ export const JoinEventResponse = zod.object({
     status: zod.enum(["pending", "live", "closed"]),
     qrCodeToken: zod.string(),
     flyerTagline: zod.string().nullish(),
-    flyerOptions: FlyerOptionsSchema,
+    flyerOptions: zod.object({}).passthrough().nullish(),
     createdAt: zod.coerce.date(),
   }),
   sessionToken: zod
@@ -294,36 +316,240 @@ export const GetHostStatsResponse = zod.object({
 });
 
 /**
- * @summary Submit anonymous feedback for an event (public, no auth)
+ * @summary List all tracked projects
  */
-export const SubmitFeedbackParams = zod.object({
-  token: zod.coerce.string(),
-});
-
-export const SubmitFeedbackBody = zod.object({
-  message: zod.string().min(1).max(500),
-  rating: zod.number().int().min(1).max(5).optional(),
-  displayName: zod.string().max(80).optional(),
-  hp: zod.string().optional(),
+export const ListTrackedProjectsResponse = zod.object({
+  projects: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      description: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
 });
 
 /**
- * @summary List feedback for an event (host only)
+ * @summary Create a new tracked project
  */
-export const ListFeedbackParams = zod.object({
+
+export const CreateTrackedProjectBody = zod.object({
+  name: zod.string().min(1),
+  description: zod.string().nullish(),
+});
+
+/**
+ * @summary Get a single tracked project
+ */
+export const GetTrackedProjectParams = zod.object({
   id: zod.coerce.number(),
 });
 
-export const FeedbackItemSchema = zod.object({
-  id: zod.number(),
-  eventId: zod.number(),
-  attendeeId: zod.number().nullable(),
-  displayName: zod.string().nullable(),
-  message: zod.string(),
-  rating: zod.number().nullable(),
-  createdAt: zod.coerce.date(),
+export const GetTrackedProjectResponse = zod.object({
+  project: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    description: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
 });
 
-export const ListFeedbackResponse = zod.object({
-  items: zod.array(FeedbackItemSchema),
+/**
+ * @summary Update a tracked project
+ */
+export const UpdateTrackedProjectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateTrackedProjectBody = zod.object({
+  name: zod.string().min(1).optional(),
+  description: zod.string().nullish(),
+});
+
+export const UpdateTrackedProjectResponse = zod.object({
+  project: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    description: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Delete a tracked project and all its entries
+ */
+export const DeleteTrackedProjectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteTrackedProjectResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary List time entries for a project
+ */
+export const ListTimeEntriesParams = zod.object({
+  projectId: zod.coerce.number(),
+});
+
+export const ListTimeEntriesResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      projectId: zod.number(),
+      date: zod.coerce.date(),
+      hours: zod.number(),
+      description: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Log a time entry for a project
+ */
+export const CreateTimeEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+});
+
+export const createTimeEntryBodyHoursMin = 0.01;
+
+export const CreateTimeEntryBody = zod.object({
+  date: zod.coerce.date(),
+  hours: zod.number().min(createTimeEntryBodyHoursMin),
+  description: zod.string().nullish(),
+});
+
+/**
+ * @summary Update a time entry
+ */
+export const UpdateTimeEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const updateTimeEntryBodyHoursMin = 0.01;
+
+export const UpdateTimeEntryBody = zod.object({
+  date: zod.coerce.date().optional(),
+  hours: zod.number().min(updateTimeEntryBodyHoursMin).optional(),
+  description: zod.string().nullish(),
+});
+
+export const UpdateTimeEntryResponse = zod.object({
+  entry: zod.object({
+    id: zod.number(),
+    projectId: zod.number(),
+    date: zod.coerce.date(),
+    hours: zod.number(),
+    description: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Delete a time entry
+ */
+export const DeleteTimeEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const DeleteTimeEntryResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary List expense entries for a project
+ */
+export const ListExpenseEntriesParams = zod.object({
+  projectId: zod.coerce.number(),
+});
+
+export const ListExpenseEntriesResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.number(),
+      projectId: zod.number(),
+      date: zod.coerce.date(),
+      amount: zod.number(),
+      category: zod.string(),
+      description: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Log an expense entry for a project
+ */
+export const CreateExpenseEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+});
+
+export const createExpenseEntryBodyAmountMin = 0.01;
+
+export const CreateExpenseEntryBody = zod.object({
+  date: zod.coerce.date(),
+  amount: zod.number().min(createExpenseEntryBodyAmountMin),
+  category: zod.string().min(1),
+  description: zod.string().nullish(),
+});
+
+/**
+ * @summary Update an expense entry
+ */
+export const UpdateExpenseEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const updateExpenseEntryBodyAmountMin = 0.01;
+
+export const UpdateExpenseEntryBody = zod.object({
+  date: zod.coerce.date().optional(),
+  amount: zod.number().min(updateExpenseEntryBodyAmountMin).optional(),
+  category: zod.string().min(1).optional(),
+  description: zod.string().nullish(),
+});
+
+export const UpdateExpenseEntryResponse = zod.object({
+  entry: zod.object({
+    id: zod.number(),
+    projectId: zod.number(),
+    date: zod.coerce.date(),
+    amount: zod.number(),
+    category: zod.string(),
+    description: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Delete an expense entry
+ */
+export const DeleteExpenseEntryParams = zod.object({
+  projectId: zod.coerce.number(),
+  id: zod.coerce.number(),
+});
+
+export const DeleteExpenseEntryResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Get per-project and overall cost/time summary
+ */
+export const GetCostDashboardResponse = zod.object({
+  projects: zod.array(
+    zod.object({
+      projectId: zod.number(),
+      projectName: zod.string(),
+      totalHours: zod.number(),
+      totalSpend: zod.number(),
+    }),
+  ),
+  overallTotalHours: zod.number(),
+  overallTotalSpend: zod.number(),
 });

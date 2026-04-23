@@ -26,6 +26,7 @@ pnpm workspace monorepo using TypeScript. This is a full-stack real-time live ev
 artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API + WebSocket server (port via $PORT, paths: /api /ws)
+│   ├── cost-tracker/       # Project Cost Tracker - React + Vite (path: /cost-tracker/)
 │   ├── live-event/         # React + Vite frontend (port 18558, path: /)
 │   └── umic-deck/          # Slides presentation artifact (path: /umic-deck/)
 ├── lib/
@@ -62,6 +63,9 @@ artifacts-monorepo/
 - `sessions` — from Replit Auth (session storage)
 - `events` — (id, hostUserId, title, logoUrl, promoText, startTime, status, qrCodeToken, createdAt)
 - `attendees` — (id, eventId, sessionId, displayName, assignedId, joinedAt, raisedHand, raisedHandAt)
+- `tracked_projects` — (id, name, description, createdAt) — cost tracker projects
+- `time_entries` — (id, projectId, date, hours, description, createdAt) — time logging
+- `expense_entries` — (id, projectId, date, amount, category, description, createdAt) — expense logging
 
 ### Object Storage
 - GCS-backed via Replit's managed bucket
@@ -91,6 +95,13 @@ React + Vite frontend.
 - `pnpm --filter @workspace/live-event run dev` — dev server on port 18558
 - Hooks: `useWebSocket`, `useAudioBroadcast`, `useAudioReceive`
 - Auth via `@clerk/react`: `useAuth()`, `useUser()`, `useClerk()`
+
+### `artifacts/cost-tracker` (`@workspace/cost-tracker`)
+Project Cost Tracker — personal utility for tracking time and money spent on each project.
+- `pnpm --filter @workspace/cost-tracker run dev` — dev server on port 18130
+- Routes: `/` (dashboard), `/projects` (list), `/projects/:id` (detail with time/expense entries)
+- API routes in `api-server/src/routes/costTracker.ts` under `/api/cost-tracker/*`
+- No auth required — personal use tool
 
 ### `lib/db` (`@workspace/db`)
 - `pnpm --filter @workspace/db run push` — push schema to DB

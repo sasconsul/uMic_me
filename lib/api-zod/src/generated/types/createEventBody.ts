@@ -5,8 +5,7 @@
  * Live Event Platform API
  * OpenAPI spec version: 0.1.0
  */
-
-import type { FlyerOptions } from "./flyerOptions";
+import type { CreateEventBodyFlyerOptions } from "./createEventBodyFlyerOptions";
 
 export interface CreateEventBody {
   /** @minLength 1 */
@@ -19,5 +18,6 @@ export interface CreateEventBody {
   startTime?: Date | null;
   /** @nullable */
   flyerTagline?: string | null;
-  flyerOptions?: FlyerOptions | null;
+  /** @nullable */
+  flyerOptions?: CreateEventBodyFlyerOptions;
 }

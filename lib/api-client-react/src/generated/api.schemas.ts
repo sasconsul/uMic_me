@@ -17,7 +17,6 @@ export interface DeleteSuccess {
   success: boolean;
 }
 
-
 export interface UploadUrlRequest {
   /** @minLength 1 */
   name: string;
@@ -41,15 +40,10 @@ export const EventStatus = {
   closed: "closed",
 } as const;
 
-export interface FlyerOptions {
-  colorScheme?: "light" | "dark" | "custom";
-  accentColor?: string;
-  showLogo?: boolean;
-  showPromoText?: boolean;
-  showStartTime?: boolean;
-  showUrl?: boolean;
-  layout?: "portrait" | "landscape";
-}
+/**
+ * @nullable
+ */
+export type EventFlyerOptions = { [key: string]: unknown } | null;
 
 export interface Event {
   id: number;
@@ -66,9 +60,14 @@ export interface Event {
   /** @nullable */
   flyerTagline?: string | null;
   /** @nullable */
-  flyerOptions?: FlyerOptions | null;
+  flyerOptions?: EventFlyerOptions;
   createdAt: string;
 }
+
+/**
+ * @nullable
+ */
+export type CreateEventBodyFlyerOptions = { [key: string]: unknown } | null;
 
 export interface CreateEventBody {
   /** @minLength 1 */
@@ -82,14 +81,7 @@ export interface CreateEventBody {
   /** @nullable */
   flyerTagline?: string | null;
   /** @nullable */
-  flyerOptions?: FlyerOptions | null;
-}
-
-export interface DuplicateEventBody {
-  /** @minLength 1 */
-  title: string;
-  /** @nullable */
-  startTime?: string | null;
+  flyerOptions?: CreateEventBodyFlyerOptions;
 }
 
 export type UpdateEventBodyStatus =
@@ -100,6 +92,11 @@ export const UpdateEventBodyStatus = {
   live: "live",
   closed: "closed",
 } as const;
+
+/**
+ * @nullable
+ */
+export type UpdateEventBodyFlyerOptions = { [key: string]: unknown } | null;
 
 export interface UpdateEventBody {
   /** @minLength 1 */
@@ -114,7 +111,7 @@ export interface UpdateEventBody {
   /** @nullable */
   flyerTagline?: string | null;
   /** @nullable */
-  flyerOptions?: FlyerOptions | null;
+  flyerOptions?: UpdateEventBodyFlyerOptions;
 }
 
 export interface EventResponse {
@@ -185,3 +182,157 @@ export interface HostStatsResponse {
   totalAttendees: number;
 }
 
+export interface DuplicateEventBody {
+  /** @minLength 1 */
+  title: string;
+  /** @nullable */
+  startTime?: string | null;
+}
+
+export interface SubmitFeedbackBody {
+  /** @minLength 1 */
+  message: string;
+  /** @nullable */
+  rating?: number | null;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  hp?: string | null;
+}
+
+export interface FeedbackItem {
+  id: number;
+  eventId: number;
+  /** @nullable */
+  attendeeId?: number | null;
+  /** @nullable */
+  displayName?: string | null;
+  message: string;
+  /** @nullable */
+  rating?: number | null;
+  createdAt: string;
+}
+
+export interface FeedbackListResponse {
+  items: FeedbackItem[];
+}
+
+export interface TrackedProject {
+  id: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreateTrackedProjectBody {
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface UpdateTrackedProjectBody {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface TrackedProjectResponse {
+  project: TrackedProject;
+}
+
+export interface TrackedProjectListResponse {
+  projects: TrackedProject[];
+}
+
+export interface TimeEntry {
+  id: number;
+  projectId: number;
+  date: string;
+  hours: number;
+  /** @nullable */
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreateTimeEntryBody {
+  date: string;
+  /** @minimum 0.01 */
+  hours: number;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface UpdateTimeEntryBody {
+  date?: string;
+  /** @minimum 0.01 */
+  hours?: number;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface TimeEntryResponse {
+  entry: TimeEntry;
+}
+
+export interface TimeEntryListResponse {
+  entries: TimeEntry[];
+}
+
+export interface ExpenseEntry {
+  id: number;
+  projectId: number;
+  date: string;
+  amount: number;
+  category: string;
+  /** @nullable */
+  description?: string | null;
+  createdAt: string;
+}
+
+export interface CreateExpenseEntryBody {
+  date: string;
+  /** @minimum 0.01 */
+  amount: number;
+  /** @minLength 1 */
+  category: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface UpdateExpenseEntryBody {
+  date?: string;
+  /** @minimum 0.01 */
+  amount?: number;
+  /** @minLength 1 */
+  category?: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface ExpenseEntryResponse {
+  entry: ExpenseEntry;
+}
+
+export interface ExpenseEntryListResponse {
+  entries: ExpenseEntry[];
+}
+
+export interface CostDashboardProjectSummary {
+  projectId: number;
+  projectName: string;
+  totalHours: number;
+  totalSpend: number;
+}
+
+export interface CostDashboardResponse {
+  projects: CostDashboardProjectSummary[];
+  overallTotalHours: number;
+  overallTotalSpend: number;
+}
+
+export type SubmitFeedback201 = {
+  ok?: boolean;
+};

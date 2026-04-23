@@ -5,8 +5,8 @@
  * Live Event Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { EventFlyerOptions } from "./eventFlyerOptions";
 import type { EventStatus } from "./eventStatus";
-import type { FlyerOptions } from "./flyerOptions";
 
 export interface Event {
   id: number;
@@ -23,6 +23,6 @@ export interface Event {
   /** @nullable */
   flyerTagline?: string | null;
   /** @nullable */
-  flyerOptions?: FlyerOptions | null;
+  flyerOptions?: EventFlyerOptions;
   createdAt: Date;
 }

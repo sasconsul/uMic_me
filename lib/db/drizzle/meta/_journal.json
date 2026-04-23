@@ -8,6 +8,13 @@
       "when": 1775054378276,
       "tag": "0000_groovy_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776237879304,
+      "tag": "0001_yielding_warpath",
+      "breakpoints": true
     }
   ]
 }

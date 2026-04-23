@@ -19,19 +19,35 @@ import type {
 import type {
   AttendeeListResponse,
   AttendeeResponse,
+  CostDashboardResponse,
   CreateEventBody,
+  CreateExpenseEntryBody,
+  CreateTimeEntryBody,
+  CreateTrackedProjectBody,
   DeleteSuccess,
   DuplicateEventBody,
   ErrorEnvelope,
   EventListResponse,
   EventResponse,
   EventStatsResponse,
+  ExpenseEntryListResponse,
+  ExpenseEntryResponse,
+  FeedbackListResponse,
   HealthStatus,
   HostStatsResponse,
   JoinEventBody,
   JoinEventResponse,
+  SubmitFeedback201,
+  SubmitFeedbackBody,
+  TimeEntryListResponse,
+  TimeEntryResponse,
+  TrackedProjectListResponse,
+  TrackedProjectResponse,
   UpdateAttendeeBody,
   UpdateEventBody,
+  UpdateExpenseEntryBody,
+  UpdateTimeEntryBody,
+  UpdateTrackedProjectBody,
   UploadUrlRequest,
   UploadUrlResponse,
 } from "./api.schemas";
@@ -802,7 +818,7 @@ export const useDeleteEvent = <
 };
 
 /**
- * @summary Duplicate an event for a future date
+ * @summary Duplicate an event
  */
 export const getDuplicateEventUrl = (id: number) => {
   return `/api/events/${id}/duplicate`;
@@ -866,7 +882,7 @@ export type DuplicateEventMutationBody = BodyType<DuplicateEventBody>;
 export type DuplicateEventMutationError = ErrorType<ErrorEnvelope>;
 
 /**
- * @summary Duplicate an event for a future date
+ * @summary Duplicate an event
  */
 export const useDuplicateEvent = <
   TError = ErrorType<ErrorEnvelope>,
@@ -887,6 +903,180 @@ export const useDuplicateEvent = <
 > => {
   return useMutation(getDuplicateEventMutationOptions(options));
 };
+
+/**
+ * @summary Submit anonymous feedback for an event
+ */
+export const getSubmitFeedbackUrl = (token: string) => {
+  return `/api/events/feedback/${token}`;
+};
+
+export const submitFeedback = async (
+  token: string,
+  submitFeedbackBody: SubmitFeedbackBody,
+  options?: RequestInit,
+): Promise<SubmitFeedback201> => {
+  return customFetch<SubmitFeedback201>(getSubmitFeedbackUrl(token), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitFeedbackBody),
+  });
+};
+
+export const getSubmitFeedbackMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitFeedback>>,
+    TError,
+    { token: string; data: BodyType<SubmitFeedbackBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitFeedback>>,
+  TError,
+  { token: string; data: BodyType<SubmitFeedbackBody> },
+  TContext
+> => {
+  const mutationKey = ["submitFeedback"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitFeedback>>,
+    { token: string; data: BodyType<SubmitFeedbackBody> }
+  > = (props) => {
+    const { token, data } = props ?? {};
+
+    return submitFeedback(token, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitFeedbackMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitFeedback>>
+>;
+export type SubmitFeedbackMutationBody = BodyType<SubmitFeedbackBody>;
+export type SubmitFeedbackMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Submit anonymous feedback for an event
+ */
+export const useSubmitFeedback = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitFeedback>>,
+    TError,
+    { token: string; data: BodyType<SubmitFeedbackBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitFeedback>>,
+  TError,
+  { token: string; data: BodyType<SubmitFeedbackBody> },
+  TContext
+> => {
+  return useMutation(getSubmitFeedbackMutationOptions(options));
+};
+
+/**
+ * @summary List feedback for an event
+ */
+export const getListFeedbackUrl = (id: number) => {
+  return `/api/events/${id}/feedback`;
+};
+
+export const listFeedback = async (
+  id: number,
+  options?: RequestInit,
+): Promise<FeedbackListResponse> => {
+  return customFetch<FeedbackListResponse>(getListFeedbackUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListFeedbackQueryKey = (id: number) => {
+  return [`/api/events/${id}/feedback`] as const;
+};
+
+export const getListFeedbackQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFeedback>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFeedback>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListFeedbackQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeedback>>> = ({
+    signal,
+  }) => listFeedback(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFeedback>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFeedbackQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFeedback>>
+>;
+export type ListFeedbackQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List feedback for an event
+ */
+
+export function useListFeedback<
+  TData = Awaited<ReturnType<typeof listFeedback>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFeedback>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFeedbackQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List attendees for an event (host only)
@@ -1390,6 +1580,1208 @@ export function useGetHostStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetHostStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all tracked projects
+ */
+export const getListTrackedProjectsUrl = () => {
+  return `/api/cost-tracker/projects`;
+};
+
+export const listTrackedProjects = async (
+  options?: RequestInit,
+): Promise<TrackedProjectListResponse> => {
+  return customFetch<TrackedProjectListResponse>(getListTrackedProjectsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTrackedProjectsQueryKey = () => {
+  return [`/api/cost-tracker/projects`] as const;
+};
+
+export const getListTrackedProjectsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTrackedProjects>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTrackedProjects>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTrackedProjectsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listTrackedProjects>>
+  > = ({ signal }) => listTrackedProjects({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTrackedProjects>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTrackedProjectsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTrackedProjects>>
+>;
+export type ListTrackedProjectsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all tracked projects
+ */
+
+export function useListTrackedProjects<
+  TData = Awaited<ReturnType<typeof listTrackedProjects>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTrackedProjects>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTrackedProjectsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new tracked project
+ */
+export const getCreateTrackedProjectUrl = () => {
+  return `/api/cost-tracker/projects`;
+};
+
+export const createTrackedProject = async (
+  createTrackedProjectBody: CreateTrackedProjectBody,
+  options?: RequestInit,
+): Promise<TrackedProjectResponse> => {
+  return customFetch<TrackedProjectResponse>(getCreateTrackedProjectUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createTrackedProjectBody),
+  });
+};
+
+export const getCreateTrackedProjectMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTrackedProject>>,
+    TError,
+    { data: BodyType<CreateTrackedProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTrackedProject>>,
+  TError,
+  { data: BodyType<CreateTrackedProjectBody> },
+  TContext
+> => {
+  const mutationKey = ["createTrackedProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTrackedProject>>,
+    { data: BodyType<CreateTrackedProjectBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTrackedProject(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTrackedProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTrackedProject>>
+>;
+export type CreateTrackedProjectMutationBody =
+  BodyType<CreateTrackedProjectBody>;
+export type CreateTrackedProjectMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Create a new tracked project
+ */
+export const useCreateTrackedProject = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTrackedProject>>,
+    TError,
+    { data: BodyType<CreateTrackedProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTrackedProject>>,
+  TError,
+  { data: BodyType<CreateTrackedProjectBody> },
+  TContext
+> => {
+  return useMutation(getCreateTrackedProjectMutationOptions(options));
+};
+
+/**
+ * @summary Get a single tracked project
+ */
+export const getGetTrackedProjectUrl = (id: number) => {
+  return `/api/cost-tracker/projects/${id}`;
+};
+
+export const getTrackedProject = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TrackedProjectResponse> => {
+  return customFetch<TrackedProjectResponse>(getGetTrackedProjectUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTrackedProjectQueryKey = (id: number) => {
+  return [`/api/cost-tracker/projects/${id}`] as const;
+};
+
+export const getGetTrackedProjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTrackedProject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackedProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTrackedProjectQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTrackedProject>>
+  > = ({ signal }) => getTrackedProject(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTrackedProject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTrackedProjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTrackedProject>>
+>;
+export type GetTrackedProjectQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Get a single tracked project
+ */
+
+export function useGetTrackedProject<
+  TData = Awaited<ReturnType<typeof getTrackedProject>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTrackedProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTrackedProjectQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a tracked project
+ */
+export const getUpdateTrackedProjectUrl = (id: number) => {
+  return `/api/cost-tracker/projects/${id}`;
+};
+
+export const updateTrackedProject = async (
+  id: number,
+  updateTrackedProjectBody: UpdateTrackedProjectBody,
+  options?: RequestInit,
+): Promise<TrackedProjectResponse> => {
+  return customFetch<TrackedProjectResponse>(getUpdateTrackedProjectUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateTrackedProjectBody),
+  });
+};
+
+export const getUpdateTrackedProjectMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTrackedProject>>,
+    TError,
+    { id: number; data: BodyType<UpdateTrackedProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTrackedProject>>,
+  TError,
+  { id: number; data: BodyType<UpdateTrackedProjectBody> },
+  TContext
+> => {
+  const mutationKey = ["updateTrackedProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTrackedProject>>,
+    { id: number; data: BodyType<UpdateTrackedProjectBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateTrackedProject(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTrackedProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTrackedProject>>
+>;
+export type UpdateTrackedProjectMutationBody =
+  BodyType<UpdateTrackedProjectBody>;
+export type UpdateTrackedProjectMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Update a tracked project
+ */
+export const useUpdateTrackedProject = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTrackedProject>>,
+    TError,
+    { id: number; data: BodyType<UpdateTrackedProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTrackedProject>>,
+  TError,
+  { id: number; data: BodyType<UpdateTrackedProjectBody> },
+  TContext
+> => {
+  return useMutation(getUpdateTrackedProjectMutationOptions(options));
+};
+
+/**
+ * @summary Delete a tracked project and all its entries
+ */
+export const getDeleteTrackedProjectUrl = (id: number) => {
+  return `/api/cost-tracker/projects/${id}`;
+};
+
+export const deleteTrackedProject = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteSuccess> => {
+  return customFetch<DeleteSuccess>(getDeleteTrackedProjectUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTrackedProjectMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTrackedProject>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTrackedProject>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTrackedProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTrackedProject>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteTrackedProject(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTrackedProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTrackedProject>>
+>;
+
+export type DeleteTrackedProjectMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Delete a tracked project and all its entries
+ */
+export const useDeleteTrackedProject = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTrackedProject>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTrackedProject>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteTrackedProjectMutationOptions(options));
+};
+
+/**
+ * @summary List time entries for a project
+ */
+export const getListTimeEntriesUrl = (projectId: number) => {
+  return `/api/cost-tracker/projects/${projectId}/time-entries`;
+};
+
+export const listTimeEntries = async (
+  projectId: number,
+  options?: RequestInit,
+): Promise<TimeEntryListResponse> => {
+  return customFetch<TimeEntryListResponse>(getListTimeEntriesUrl(projectId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTimeEntriesQueryKey = (projectId: number) => {
+  return [`/api/cost-tracker/projects/${projectId}/time-entries`] as const;
+};
+
+export const getListTimeEntriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTimeEntries>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  projectId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTimeEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListTimeEntriesQueryKey(projectId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTimeEntries>>> = ({
+    signal,
+  }) => listTimeEntries(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTimeEntries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTimeEntriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTimeEntries>>
+>;
+export type ListTimeEntriesQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary List time entries for a project
+ */
+
+export function useListTimeEntries<
+  TData = Awaited<ReturnType<typeof listTimeEntries>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  projectId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTimeEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTimeEntriesQueryOptions(projectId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Log a time entry for a project
+ */
+export const getCreateTimeEntryUrl = (projectId: number) => {
+  return `/api/cost-tracker/projects/${projectId}/time-entries`;
+};
+
+export const createTimeEntry = async (
+  projectId: number,
+  createTimeEntryBody: CreateTimeEntryBody,
+  options?: RequestInit,
+): Promise<TimeEntryResponse> => {
+  return customFetch<TimeEntryResponse>(getCreateTimeEntryUrl(projectId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createTimeEntryBody),
+  });
+};
+
+export const getCreateTimeEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTimeEntry>>,
+    TError,
+    { projectId: number; data: BodyType<CreateTimeEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTimeEntry>>,
+  TError,
+  { projectId: number; data: BodyType<CreateTimeEntryBody> },
+  TContext
+> => {
+  const mutationKey = ["createTimeEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTimeEntry>>,
+    { projectId: number; data: BodyType<CreateTimeEntryBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return createTimeEntry(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTimeEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTimeEntry>>
+>;
+export type CreateTimeEntryMutationBody = BodyType<CreateTimeEntryBody>;
+export type CreateTimeEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Log a time entry for a project
+ */
+export const useCreateTimeEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTimeEntry>>,
+    TError,
+    { projectId: number; data: BodyType<CreateTimeEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTimeEntry>>,
+  TError,
+  { projectId: number; data: BodyType<CreateTimeEntryBody> },
+  TContext
+> => {
+  return useMutation(getCreateTimeEntryMutationOptions(options));
+};
+
+/**
+ * @summary Update a time entry
+ */
+export const getUpdateTimeEntryUrl = (projectId: number, id: number) => {
+  return `/api/cost-tracker/projects/${projectId}/time-entries/${id}`;
+};
+
+export const updateTimeEntry = async (
+  projectId: number,
+  id: number,
+  updateTimeEntryBody: UpdateTimeEntryBody,
+  options?: RequestInit,
+): Promise<TimeEntryResponse> => {
+  return customFetch<TimeEntryResponse>(getUpdateTimeEntryUrl(projectId, id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateTimeEntryBody),
+  });
+};
+
+export const getUpdateTimeEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTimeEntry>>,
+    TError,
+    { projectId: number; id: number; data: BodyType<UpdateTimeEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTimeEntry>>,
+  TError,
+  { projectId: number; id: number; data: BodyType<UpdateTimeEntryBody> },
+  TContext
+> => {
+  const mutationKey = ["updateTimeEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTimeEntry>>,
+    { projectId: number; id: number; data: BodyType<UpdateTimeEntryBody> }
+  > = (props) => {
+    const { projectId, id, data } = props ?? {};
+
+    return updateTimeEntry(projectId, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTimeEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTimeEntry>>
+>;
+export type UpdateTimeEntryMutationBody = BodyType<UpdateTimeEntryBody>;
+export type UpdateTimeEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Update a time entry
+ */
+export const useUpdateTimeEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTimeEntry>>,
+    TError,
+    { projectId: number; id: number; data: BodyType<UpdateTimeEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTimeEntry>>,
+  TError,
+  { projectId: number; id: number; data: BodyType<UpdateTimeEntryBody> },
+  TContext
+> => {
+  return useMutation(getUpdateTimeEntryMutationOptions(options));
+};
+
+/**
+ * @summary Delete a time entry
+ */
+export const getDeleteTimeEntryUrl = (projectId: number, id: number) => {
+  return `/api/cost-tracker/projects/${projectId}/time-entries/${id}`;
+};
+
+export const deleteTimeEntry = async (
+  projectId: number,
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteSuccess> => {
+  return customFetch<DeleteSuccess>(getDeleteTimeEntryUrl(projectId, id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTimeEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTimeEntry>>,
+    TError,
+    { projectId: number; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTimeEntry>>,
+  TError,
+  { projectId: number; id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTimeEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTimeEntry>>,
+    { projectId: number; id: number }
+  > = (props) => {
+    const { projectId, id } = props ?? {};
+
+    return deleteTimeEntry(projectId, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTimeEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTimeEntry>>
+>;
+
+export type DeleteTimeEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Delete a time entry
+ */
+export const useDeleteTimeEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTimeEntry>>,
+    TError,
+    { projectId: number; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTimeEntry>>,
+  TError,
+  { projectId: number; id: number },
+  TContext
+> => {
+  return useMutation(getDeleteTimeEntryMutationOptions(options));
+};
+
+/**
+ * @summary List expense entries for a project
+ */
+export const getListExpenseEntriesUrl = (projectId: number) => {
+  return `/api/cost-tracker/projects/${projectId}/expense-entries`;
+};
+
+export const listExpenseEntries = async (
+  projectId: number,
+  options?: RequestInit,
+): Promise<ExpenseEntryListResponse> => {
+  return customFetch<ExpenseEntryListResponse>(
+    getListExpenseEntriesUrl(projectId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListExpenseEntriesQueryKey = (projectId: number) => {
+  return [`/api/cost-tracker/projects/${projectId}/expense-entries`] as const;
+};
+
+export const getListExpenseEntriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listExpenseEntries>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  projectId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listExpenseEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListExpenseEntriesQueryKey(projectId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listExpenseEntries>>
+  > = ({ signal }) =>
+    listExpenseEntries(projectId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!projectId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listExpenseEntries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListExpenseEntriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listExpenseEntries>>
+>;
+export type ListExpenseEntriesQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary List expense entries for a project
+ */
+
+export function useListExpenseEntries<
+  TData = Awaited<ReturnType<typeof listExpenseEntries>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  projectId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listExpenseEntries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListExpenseEntriesQueryOptions(projectId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Log an expense entry for a project
+ */
+export const getCreateExpenseEntryUrl = (projectId: number) => {
+  return `/api/cost-tracker/projects/${projectId}/expense-entries`;
+};
+
+export const createExpenseEntry = async (
+  projectId: number,
+  createExpenseEntryBody: CreateExpenseEntryBody,
+  options?: RequestInit,
+): Promise<ExpenseEntryResponse> => {
+  return customFetch<ExpenseEntryResponse>(
+    getCreateExpenseEntryUrl(projectId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(createExpenseEntryBody),
+    },
+  );
+};
+
+export const getCreateExpenseEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createExpenseEntry>>,
+    TError,
+    { projectId: number; data: BodyType<CreateExpenseEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createExpenseEntry>>,
+  TError,
+  { projectId: number; data: BodyType<CreateExpenseEntryBody> },
+  TContext
+> => {
+  const mutationKey = ["createExpenseEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createExpenseEntry>>,
+    { projectId: number; data: BodyType<CreateExpenseEntryBody> }
+  > = (props) => {
+    const { projectId, data } = props ?? {};
+
+    return createExpenseEntry(projectId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateExpenseEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createExpenseEntry>>
+>;
+export type CreateExpenseEntryMutationBody = BodyType<CreateExpenseEntryBody>;
+export type CreateExpenseEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Log an expense entry for a project
+ */
+export const useCreateExpenseEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createExpenseEntry>>,
+    TError,
+    { projectId: number; data: BodyType<CreateExpenseEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createExpenseEntry>>,
+  TError,
+  { projectId: number; data: BodyType<CreateExpenseEntryBody> },
+  TContext
+> => {
+  return useMutation(getCreateExpenseEntryMutationOptions(options));
+};
+
+/**
+ * @summary Update an expense entry
+ */
+export const getUpdateExpenseEntryUrl = (projectId: number, id: number) => {
+  return `/api/cost-tracker/projects/${projectId}/expense-entries/${id}`;
+};
+
+export const updateExpenseEntry = async (
+  projectId: number,
+  id: number,
+  updateExpenseEntryBody: UpdateExpenseEntryBody,
+  options?: RequestInit,
+): Promise<ExpenseEntryResponse> => {
+  return customFetch<ExpenseEntryResponse>(
+    getUpdateExpenseEntryUrl(projectId, id),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateExpenseEntryBody),
+    },
+  );
+};
+
+export const getUpdateExpenseEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateExpenseEntry>>,
+    TError,
+    { projectId: number; id: number; data: BodyType<UpdateExpenseEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateExpenseEntry>>,
+  TError,
+  { projectId: number; id: number; data: BodyType<UpdateExpenseEntryBody> },
+  TContext
+> => {
+  const mutationKey = ["updateExpenseEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateExpenseEntry>>,
+    { projectId: number; id: number; data: BodyType<UpdateExpenseEntryBody> }
+  > = (props) => {
+    const { projectId, id, data } = props ?? {};
+
+    return updateExpenseEntry(projectId, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateExpenseEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateExpenseEntry>>
+>;
+export type UpdateExpenseEntryMutationBody = BodyType<UpdateExpenseEntryBody>;
+export type UpdateExpenseEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Update an expense entry
+ */
+export const useUpdateExpenseEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateExpenseEntry>>,
+    TError,
+    { projectId: number; id: number; data: BodyType<UpdateExpenseEntryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateExpenseEntry>>,
+  TError,
+  { projectId: number; id: number; data: BodyType<UpdateExpenseEntryBody> },
+  TContext
+> => {
+  return useMutation(getUpdateExpenseEntryMutationOptions(options));
+};
+
+/**
+ * @summary Delete an expense entry
+ */
+export const getDeleteExpenseEntryUrl = (projectId: number, id: number) => {
+  return `/api/cost-tracker/projects/${projectId}/expense-entries/${id}`;
+};
+
+export const deleteExpenseEntry = async (
+  projectId: number,
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteSuccess> => {
+  return customFetch<DeleteSuccess>(getDeleteExpenseEntryUrl(projectId, id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteExpenseEntryMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteExpenseEntry>>,
+    TError,
+    { projectId: number; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteExpenseEntry>>,
+  TError,
+  { projectId: number; id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteExpenseEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteExpenseEntry>>,
+    { projectId: number; id: number }
+  > = (props) => {
+    const { projectId, id } = props ?? {};
+
+    return deleteExpenseEntry(projectId, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteExpenseEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteExpenseEntry>>
+>;
+
+export type DeleteExpenseEntryMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Delete an expense entry
+ */
+export const useDeleteExpenseEntry = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteExpenseEntry>>,
+    TError,
+    { projectId: number; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteExpenseEntry>>,
+  TError,
+  { projectId: number; id: number },
+  TContext
+> => {
+  return useMutation(getDeleteExpenseEntryMutationOptions(options));
+};
+
+/**
+ * @summary Get per-project and overall cost/time summary
+ */
+export const getGetCostDashboardUrl = () => {
+  return `/api/cost-tracker/dashboard`;
+};
+
+export const getCostDashboard = async (
+  options?: RequestInit,
+): Promise<CostDashboardResponse> => {
+  return customFetch<CostDashboardResponse>(getGetCostDashboardUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCostDashboardQueryKey = () => {
+  return [`/api/cost-tracker/dashboard`] as const;
+};
+
+export const getGetCostDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCostDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCostDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCostDashboardQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCostDashboard>>
+  > = ({ signal }) => getCostDashboard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCostDashboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCostDashboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCostDashboard>>
+>;
+export type GetCostDashboardQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get per-project and overall cost/time summary
+ */
+
+export function useGetCostDashboard<
+  TData = Awaited<ReturnType<typeof getCostDashboard>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCostDashboard>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCostDashboardQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

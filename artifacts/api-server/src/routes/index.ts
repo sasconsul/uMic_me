@@ -5,6 +5,7 @@ import eventsRouter from "./events";
 import attendeesRouter from "./attendees";
 import feedbackRouter from "./feedback";
 import pollSetsRouter from "./pollSets";
+import costTrackerRouter from "./costTracker";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(eventsRouter);
 router.use(attendeesRouter);
 router.use(feedbackRouter);
 router.use(pollSetsRouter);
+router.use(costTrackerRouter);
 
 export default router;

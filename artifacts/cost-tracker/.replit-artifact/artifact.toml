@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/cost-tracker/"
+title = "Project Cost Tracker"
+version = "1.0.0"
+id = "artifacts/cost-tracker"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/cost-tracker/" ]
+localPort = 18130
+
+[services.development]
+run = "pnpm --filter @workspace/cost-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cost-tracker", "run", "build" ]
+publicDir = "artifacts/cost-tracker/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18130"
+BASE_PATH = "/cost-tracker/"

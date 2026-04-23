@@ -5,8 +5,8 @@
  * Live Event Platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { UpdateEventBodyFlyerOptions } from "./updateEventBodyFlyerOptions";
 import type { UpdateEventBodyStatus } from "./updateEventBodyStatus";
-import type { FlyerOptions } from "./flyerOptions";
 
 export interface UpdateEventBody {
   /** @minLength 1 */
@@ -21,5 +21,5 @@ export interface UpdateEventBody {
   /** @nullable */
   flyerTagline?: string | null;
   /** @nullable */
-  flyerOptions?: FlyerOptions | null;
+  flyerOptions?: UpdateEventBodyFlyerOptions;
 }
