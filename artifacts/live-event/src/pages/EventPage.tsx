@@ -60,6 +60,7 @@ interface LiveAttendee {
 
 interface PollSnapshot {
   id: string;
+  pollType?: string;
   question: string;
   options: string[];
   counts: number[];
@@ -96,7 +97,8 @@ export function EventPage({ eventId }: EventPageProps) {
   interface SavedSet { id: number; title: string; questions: SavedQuestion[]; }
   const [savedSets, setSavedSets] = useState<SavedSet[] | null>(null);
   const [loadingSets, setLoadingSets] = useState(false);
-  const [pollMode, setPollMode] = useState<"adhoc" | "saved">("adhoc");
+  const [pollMode, setPollMode] = useState<"adhoc" | "saved" | "feature-board">("adhoc");
+  const [featureBoardPrompt, setFeatureBoardPrompt] = useState("Got an idea? Vote on features or submit yours!");
   const [selectedSetId, setSelectedSetId] = useState<number | null>(null);
   const [saveSetOpen, setSaveSetOpen] = useState(false);
   const [saveSetId, setSaveSetId] = useState<number | "new" | null>(null);
@@ -557,6 +559,14 @@ export function EventPage({ eventId }: EventPageProps) {
     setPollCreating(false);
     setPollMode("adhoc");
     setSelectedSetId(null);
+  };
+
+  const handleLaunchFeatureBoard = () => {
+    const prompt = featureBoardPrompt.trim();
+    if (!prompt) { toast.error("Enter a prompt for attendees"); return; }
+    send({ type: "launch-poll", pollType: "feature-board", question: prompt, options: [] });
+    setPollCreating(false);
+    setPollMode("adhoc");
   };
 
   const handleSaveToSet = async () => {
@@ -1126,6 +1136,13 @@ export function EventPage({ eventId }: EventPageProps) {
                   >
                     From Poll Set
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setPollMode("feature-board")}
+                    className={`flex-1 py-1.5 transition-colors focus-visible:outline-none ${pollMode === "feature-board" ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}
+                  >
+                    Feature Board
+                  </button>
                 </div>
 
                 {pollMode === "adhoc" && (
@@ -1237,22 +1254,44 @@ export function EventPage({ eventId }: EventPageProps) {
                   );
                 })()}
 
-                {/* Show results toggle (applies to both modes) */}
-                <label className="flex items-center gap-3 cursor-pointer select-none" htmlFor="poll-show-results">
-                  <div
-                    id="poll-show-results"
-                    role="switch"
-                    tabIndex={0}
-                    aria-checked={pollShowResults}
-                    aria-label="Show live results to attendees"
-                    onClick={() => setPollShowResults((v) => !v)}
-                    onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setPollShowResults((v) => !v); } }}
-                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${pollShowResults ? "bg-primary" : "bg-muted-foreground/30"}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pollShowResults ? "translate-x-4" : "translate-x-0.5"}`} aria-hidden="true" />
+                {pollMode === "feature-board" && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label htmlFor="feature-board-prompt" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Attendee Prompt</label>
+                      <textarea
+                        id="feature-board-prompt"
+                        value={featureBoardPrompt}
+                        onChange={(e) => setFeatureBoardPrompt(e.target.value)}
+                        placeholder="Got an idea? Vote on features or submit yours!"
+                        rows={2}
+                        maxLength={300}
+                        className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 resize-none"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Attendees will see this message and a button linking to the Feature Board where they can vote on and submit feature ideas.
+                    </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">Show live results to attendees</span>
-                </label>
+                )}
+
+                {/* Show results toggle (applies to adhoc and saved modes) */}
+                {pollMode !== "feature-board" && (
+                  <label className="flex items-center gap-3 cursor-pointer select-none" htmlFor="poll-show-results">
+                    <div
+                      id="poll-show-results"
+                      role="switch"
+                      tabIndex={0}
+                      aria-checked={pollShowResults}
+                      aria-label="Show live results to attendees"
+                      onClick={() => setPollShowResults((v) => !v)}
+                      onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setPollShowResults((v) => !v); } }}
+                      className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${pollShowResults ? "bg-primary" : "bg-muted-foreground/30"}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${pollShowResults ? "translate-x-4" : "translate-x-0.5"}`} aria-hidden="true" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">Show live results to attendees</span>
+                  </label>
+                )}
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
@@ -1279,6 +1318,16 @@ export function EventPage({ eventId }: EventPageProps) {
                         <BarChart2 className="w-3 h-3" aria-hidden="true" /> Launch Poll
                       </button>
                     </>
+                  )}
+                  {pollMode === "feature-board" && (
+                    <button
+                      type="button"
+                      onClick={handleLaunchFeatureBoard}
+                      disabled={!featureBoardPrompt.trim()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <ExternalLink className="w-3 h-3" aria-hidden="true" /> Broadcast Feature Board
+                    </button>
                   )}
                 </div>
                 {pollMode === "adhoc" && saveSetOpen && (
@@ -1331,62 +1380,96 @@ export function EventPage({ eventId }: EventPageProps) {
 
             {activePoll && !pollCreating && (
               <div className="space-y-3">
-                <p className="font-medium text-sm">{activePoll.question}</p>
-                <div className="space-y-2">
-                  {activePoll.options.map((opt, i) => {
-                    const count = activePoll.counts[i] ?? 0;
-                    const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
-                    return (
-                      <div key={i} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium truncate">{opt}</span>
-                          <span className="text-muted-foreground shrink-0 ml-2">{count} vote{count !== 1 ? "s" : ""} ({pct}%)</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden" aria-label={`${opt}: ${pct}%`}>
-                          <div
-                            className="h-full bg-primary rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                            role="meter"
-                            aria-valuenow={pct}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                          />
-                        </div>
+                {activePoll.pollType === "feature-board" ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <ExternalLink className="w-3.5 h-3.5 text-primary shrink-0" aria-hidden="true" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {activePoll.active ? "Feature Board CTA — Live" : "Feature Board CTA — Ended"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{activePoll.question}</p>
+                    <p className="text-xs text-muted-foreground">Attendees see this prompt with a link to the Feature Board.</p>
+                    {activePoll.active && (
+                      <button
+                        onClick={handleEndPoll}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                      >
+                        End Feature Board CTA
+                      </button>
+                    )}
+                    {!activePoll.active && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Feature Board CTA ended</span>
+                        <button
+                          onClick={() => setPollCreating(true)}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                          <Plus className="w-3 h-3" aria-hidden="true" /> New Poll
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""} total</p>
-                {activePoll.active && (
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={handleTogglePollResults}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    >
-                      {activePoll.showResults ? (
-                        <><EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> Hide from attendees</>
-                      ) : (
-                        <><Eye className="w-3.5 h-3.5" aria-hidden="true" /> Show to attendees</>
-                      )}
-                    </button>
-                    <button
-                      onClick={handleEndPoll}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
-                    >
-                      End Poll
-                    </button>
-                  </div>
-                )}
-                {!activePoll.active && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Poll ended</span>
-                    <button
-                      onClick={() => setPollCreating(true)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <Plus className="w-3 h-3" aria-hidden="true" /> New Poll
-                    </button>
-                  </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-sm">{activePoll.question}</p>
+                    <div className="space-y-2">
+                      {activePoll.options.map((opt, i) => {
+                        const count = activePoll.counts[i] ?? 0;
+                        const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
+                        return (
+                          <div key={i} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium truncate">{opt}</span>
+                              <span className="text-muted-foreground shrink-0 ml-2">{count} vote{count !== 1 ? "s" : ""} ({pct}%)</span>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden" aria-label={`${opt}: ${pct}%`}>
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }}
+                                role="meter"
+                                aria-valuenow={pct}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""} total</p>
+                    {activePoll.active && (
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={handleTogglePollResults}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        >
+                          {activePoll.showResults ? (
+                            <><EyeOff className="w-3.5 h-3.5" aria-hidden="true" /> Hide from attendees</>
+                          ) : (
+                            <><Eye className="w-3.5 h-3.5" aria-hidden="true" /> Show to attendees</>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleEndPoll}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg hover:bg-destructive/20 transition-colors font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2"
+                        >
+                          End Poll
+                        </button>
+                      </div>
+                    )}
+                    {!activePoll.active && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Poll ended</span>
+                        <button
+                          onClick={() => setPollCreating(true)}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                          <Plus className="w-3 h-3" aria-hidden="true" /> New Poll
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

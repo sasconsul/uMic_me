@@ -22,6 +22,7 @@ export interface RoomClient {
 export interface Poll {
   id: string;
   pollQuestionId?: number;
+  pollType?: string;
   question: string;
   options: string[];
   votes: Map<number, number>;
@@ -105,6 +106,7 @@ export function getPollSnapshot(poll: Poll, role: "host" | "attendee") {
   const counts = tally.map((t) => t.count);
   return {
     id: poll.id,
+    pollType: poll.pollType,
     question: poll.question,
     options: poll.options,
     counts,
@@ -449,17 +451,20 @@ export function setupWebSocketServer(server: Server) {
         case "launch-poll": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           const question = typeof msg.question === "string" ? msg.question.trim().slice(0, 300) : "";
+          const isFeatureBoard = msg.pollType === "feature-board";
           const rawOptions = Array.isArray(msg.options) ? msg.options : [];
           const options = (rawOptions as unknown[])
             .map((o) => (typeof o === "string" ? o.trim().slice(0, 200) : ""))
             .filter((o) => o.length > 0)
             .slice(0, 10);
-          if (!question || options.length < 2) return;
+          if (!question) return;
+          if (!isFeatureBoard && options.length < 2) return;
           const poll: Poll = {
             id: randomUUID(),
+            pollType: isFeatureBoard ? "feature-board" : undefined,
             pollQuestionId: typeof msg.pollQuestionId === "number" ? msg.pollQuestionId : undefined,
             question,
-            options,
+            options: isFeatureBoard ? [] : options,
             votes: new Map(),
             attendeeNames: new Map(),
             showResults: Boolean(msg.showResults),

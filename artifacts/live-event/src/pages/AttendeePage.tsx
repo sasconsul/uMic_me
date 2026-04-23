@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2 } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -49,6 +49,7 @@ export function AttendeePage() {
 
   interface PollSnapshot {
     id: string;
+    pollType?: string;
     question: string;
     options: string[];
     counts: number[];
@@ -611,61 +612,84 @@ export function AttendeePage() {
 
         {activePoll && (
           <div className="bg-card border border-border rounded-xl p-5 space-y-4 w-full text-left">
-            <div className="flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-              <span className="font-semibold text-sm">{activePoll.active ? "Live Poll" : "Poll Results"}</span>
-              {activePoll.active && myVote === null && (
-                <span className="ml-auto text-xs bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">Vote now</span>
-              )}
-              {myVote !== null && (
-                <span className="ml-auto text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-medium">Voted</span>
-              )}
-            </div>
-            <p className="text-sm font-medium">{activePoll.question}</p>
-            <div className="space-y-2" role="group" aria-label="Poll options">
-              {activePoll.options.map((opt, i) => {
-                const count = activePoll.counts[i] ?? 0;
-                const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
-                const voted = myVote === i;
-                const canVote = activePoll.active && myVote === null;
-                const showBar = !activePoll.active || activePoll.showResults || myVote !== null;
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    disabled={!canVote}
-                    onClick={() => handleCastVote(i)}
-                    aria-pressed={voted}
-                    className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 relative overflow-hidden ${
-                      voted
-                        ? "border-primary bg-primary/10 font-semibold"
-                        : canVote
-                          ? "border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
-                          : "border-border cursor-default"
-                    }`}
+            {activePoll.pollType === "feature-board" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                  <span className="font-semibold text-sm">{activePoll.active ? "Feature Board" : "Feature Board (Ended)"}</span>
+                </div>
+                <p className="text-sm font-medium">{activePoll.question}</p>
+                {activePoll.active && (
+                  <a
+                    href="/feature-board/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
-                    {showBar && (
-                      <div
-                        className="absolute inset-0 bg-primary/8 transition-all duration-500 rounded-xl"
-                        style={{ width: `${pct}%` }}
-                        aria-hidden="true"
-                      />
-                    )}
-                    <div className="relative flex items-center justify-between gap-2">
-                      <span className="truncate">{opt}</span>
-                      {showBar && (
-                        <span className="text-xs text-muted-foreground shrink-0">{pct}%</span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {(activePoll.showResults || !activePoll.active || myVote !== null) && (
-              <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""}</p>
-            )}
-            {myVote !== null && activePoll.active && !activePoll.showResults && (
-              <p className="text-xs text-muted-foreground">Your vote has been recorded. Results will be shown when the host reveals them.</p>
+                    <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                    Open Feature Board
+                  </a>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+                  <span className="font-semibold text-sm">{activePoll.active ? "Live Poll" : "Poll Results"}</span>
+                  {activePoll.active && myVote === null && (
+                    <span className="ml-auto text-xs bg-green-500/10 text-green-600 border border-green-500/20 px-2 py-0.5 rounded-full font-medium">Vote now</span>
+                  )}
+                  {myVote !== null && (
+                    <span className="ml-auto text-xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-medium">Voted</span>
+                  )}
+                </div>
+                <p className="text-sm font-medium">{activePoll.question}</p>
+                <div className="space-y-2" role="group" aria-label="Poll options">
+                  {activePoll.options.map((opt, i) => {
+                    const count = activePoll.counts[i] ?? 0;
+                    const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
+                    const voted = myVote === i;
+                    const canVote = activePoll.active && myVote === null;
+                    const showBar = !activePoll.active || activePoll.showResults || myVote !== null;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        disabled={!canVote}
+                        onClick={() => handleCastVote(i)}
+                        aria-pressed={voted}
+                        className={`w-full text-left rounded-xl border px-4 py-3 text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 relative overflow-hidden ${
+                          voted
+                            ? "border-primary bg-primary/10 font-semibold"
+                            : canVote
+                              ? "border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
+                              : "border-border cursor-default"
+                        }`}
+                      >
+                        {showBar && (
+                          <div
+                            className="absolute inset-0 bg-primary/8 transition-all duration-500 rounded-xl"
+                            style={{ width: `${pct}%` }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <div className="relative flex items-center justify-between gap-2">
+                          <span className="truncate">{opt}</span>
+                          {showBar && (
+                            <span className="text-xs text-muted-foreground shrink-0">{pct}%</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(activePoll.showResults || !activePoll.active || myVote !== null) && (
+                  <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""}</p>
+                )}
+                {myVote !== null && activePoll.active && !activePoll.showResults && (
+                  <p className="text-xs text-muted-foreground">Your vote has been recorded. Results will be shown when the host reveals them.</p>
+                )}
+              </>
             )}
           </div>
         )}
