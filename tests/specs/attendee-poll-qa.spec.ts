@@ -444,6 +444,85 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     ).toBeVisible({ timeout: 5000 });
   });
 
+  test("poll-results-toggled makes result percentages and vote counts visible after showResults=false launch", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-toggle-1",
+        question: "Favourite season?",
+        options: ["Spring", "Summer", "Autumn", "Winter"],
+        counts: [6, 10, 4, 5],
+        totalVotes: 25,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Favourite season?")).toBeVisible();
+    expect(await page.locator("text=40%").count()).toBe(0);
+    expect(await page.locator("text=25 votes").count()).toBe(0);
+
+    await sendWsMessage(page, {
+      type: "poll-results-toggled",
+      poll: {
+        id: "poll-toggle-1",
+        question: "Favourite season?",
+        options: ["Spring", "Summer", "Autumn", "Winter"],
+        counts: [6, 10, 4, 5],
+        totalVotes: 25,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=40%")).toBeVisible();
+    await expect(page.locator("text=25 votes")).toBeVisible();
+  });
+
+  test("poll-updated reflects updated vote counts in real-time", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-update-1",
+        question: "Best database?",
+        options: ["Postgres", "MySQL"],
+        counts: [5, 5],
+        totalVotes: 10,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Best database?")).toBeVisible();
+    await expect(page.locator("text=10 votes")).toBeVisible();
+    await expect(page.locator("text=50%").first()).toBeVisible();
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-update-1",
+        question: "Best database?",
+        options: ["Postgres", "MySQL"],
+        counts: [15, 5],
+        totalVotes: 20,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=20 votes")).toBeVisible();
+    await expect(page.locator("text=75%")).toBeVisible();
+    await expect(page.locator("text=25%")).toBeVisible();
+  });
+
   test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
