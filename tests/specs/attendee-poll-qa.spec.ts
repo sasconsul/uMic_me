@@ -467,6 +467,33 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     ).toBeVisible({ timeout: 5000 });
   });
 
+  test("percentages and vote count are hidden when showResults=false and attendee has not voted", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-hidden-pct",
+        question: "Favourite colour?",
+        options: ["Red", "Green", "Blue"],
+        counts: [6, 10, 4],
+        totalVotes: 20,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Favourite colour?")).toBeVisible();
+    await expect(page.locator("text=Vote now")).toBeVisible();
+
+    await expect(page.locator("text=30%")).toHaveCount(0);
+    await expect(page.locator("text=50%")).toHaveCount(0);
+    await expect(page.locator("text=20%")).toHaveCount(0);
+    await expect(page.locator("text=20 votes")).toHaveCount(0);
+  });
+
   test("poll-results-toggled makes result percentages and vote counts visible after showResults=false launch", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
