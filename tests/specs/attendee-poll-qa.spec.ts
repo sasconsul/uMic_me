@@ -444,6 +444,29 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     ).toBeVisible({ timeout: 5000 });
   });
 
+  test("poll-launched without pollType feature-board shows 'A poll has started' toast", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-regular-toast",
+        question: "What is your favourite colour?",
+        options: ["Red", "Green", "Blue"],
+        counts: [0, 0, 0],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(
+      page.locator("text=A poll has started — cast your vote!")
+    ).toBeVisible({ timeout: 5000 });
+  });
+
   test("poll-results-toggled makes result percentages and vote counts visible after showResults=false launch", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
