@@ -573,6 +573,89 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     await expect(page.locator("text=25%")).toBeVisible();
   });
 
+  test("rapid sequential poll-updated messages each update vote counts without flash or broken state", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-rapid-1",
+        question: "Best language?",
+        options: ["TypeScript", "Python", "Go"],
+        counts: [10, 5, 5],
+        totalVotes: 20,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Best language?")).toBeVisible();
+    await expect(page.locator("text=20 votes")).toBeVisible();
+    await expect(page.locator("text=50%")).toBeVisible();
+    await expect(page.locator("text=25%").first()).toBeVisible();
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-rapid-1",
+        question: "Best language?",
+        options: ["TypeScript", "Python", "Go"],
+        counts: [15, 5, 5],
+        totalVotes: 25,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=25 votes")).toBeVisible();
+    await expect(page.locator("text=60%")).toBeVisible();
+    await expect(page.locator("text=20%").first()).toBeVisible();
+    await expect(page.locator("text=20 votes")).toHaveCount(0);
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-rapid-1",
+        question: "Best language?",
+        options: ["TypeScript", "Python", "Go"],
+        counts: [20, 5, 5],
+        totalVotes: 30,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=30 votes")).toBeVisible();
+    await expect(page.locator("text=67%")).toBeVisible();
+    await expect(page.locator("text=17%").first()).toBeVisible();
+    await expect(page.locator("text=25 votes")).toHaveCount(0);
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-rapid-1",
+        question: "Best language?",
+        options: ["TypeScript", "Python", "Go"],
+        counts: [30, 5, 5],
+        totalVotes: 40,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=40 votes")).toBeVisible();
+    await expect(page.locator("text=75%")).toBeVisible();
+    await expect(page.locator("text=13%").first()).toBeVisible();
+    await expect(page.locator("text=30 votes")).toHaveCount(0);
+
+    await expect(page.locator("text=Best language?")).toBeVisible();
+    await expect(page.locator("text=TypeScript")).toBeVisible();
+    await expect(page.locator("text=Python")).toBeVisible();
+    await expect(page.locator("text=Go")).toBeVisible();
+  });
+
   test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
