@@ -891,6 +891,150 @@ test.describe("Attendee Page — Q&A question submission", () => {
   });
 });
 
+test.describe("Attendee Page — WebSocket reconnection recovery", () => {
+  const attendeePath = "/attend/test-token/42";
+
+  const joinData = JSON.stringify({
+    eventId: 1,
+    displayName: "Reconnect Tester",
+    sessionToken: "tok-reconnect",
+    eventTitle: "Reconnect Conference",
+    assignedId: 42,
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const _instances: any[] = [];
+      (window as any).__mockWsInstances = _instances;
+      (window as any).__mockWsSend = (data: string) => {
+        for (const inst of _instances) {
+          if (inst.readyState === 1 && inst._onmessage) {
+            inst._onmessage({ data });
+          }
+        }
+      };
+      (window as any).__mockWsClose = () => {
+        const last = _instances[_instances.length - 1];
+        if (last) last.close();
+      };
+
+      (window as any).WebSocket = class MockWebSocket {
+        static CONNECTING = 0;
+        static OPEN = 1;
+        static CLOSING = 2;
+        static CLOSED = 3;
+        CONNECTING = 0;
+        OPEN = 1;
+        CLOSING = 2;
+        CLOSED = 3;
+
+        readyState = 1;
+        url: string;
+        _onmessage: ((ev: any) => void) | null = null;
+        _onopen: ((ev: any) => void) | null = null;
+        _onclose: ((ev: any) => void) | null = null;
+        _onerror: ((ev: any) => void) | null = null;
+        _listeners: Record<string, Function[]> = {};
+
+        constructor(url: string) {
+          this.url = url;
+          _instances.push(this);
+          setTimeout(() => {
+            if (this._onopen) this._onopen({});
+            this._emit("open", {});
+          }, 50);
+        }
+
+        set onmessage(fn: ((ev: any) => void) | null) { this._onmessage = fn; }
+        get onmessage() { return this._onmessage; }
+        set onopen(fn: ((ev: any) => void) | null) { this._onopen = fn; }
+        get onopen() { return this._onopen; }
+        set onclose(fn: ((ev: any) => void) | null) { this._onclose = fn; }
+        get onclose() { return this._onclose; }
+        set onerror(fn: ((ev: any) => void) | null) { this._onerror = fn; }
+        get onerror() { return this._onerror; }
+
+        addEventListener(type: string, fn: Function) {
+          if (!this._listeners[type]) this._listeners[type] = [];
+          this._listeners[type].push(fn);
+          if (type === "message") this._onmessage = fn as any;
+          if (type === "open") {
+            this._onopen = fn as any;
+            if (this.readyState === 1) setTimeout(() => (fn as any)({}), 10);
+          }
+        }
+        removeEventListener(type: string, fn: Function) {
+          if (this._listeners[type]) {
+            this._listeners[type] = this._listeners[type].filter(f => f !== fn);
+          }
+        }
+        _emit(type: string, ev: any) {
+          for (const fn of (this._listeners[type] || [])) fn(ev);
+        }
+
+        send(_data: string) {}
+        close() {
+          this.readyState = 3;
+          if (this._onclose) this._onclose({});
+          this._emit("close", {});
+        }
+      };
+    });
+
+    await page.goto("/");
+    await page.evaluate(
+      ({ key, value }) => localStorage.setItem(key, value),
+      { key: "event-join-42", value: joinData },
+    );
+  });
+
+  function sendWsMessage(page: any, msg: object) {
+    return page.evaluate((data: string) => {
+      (window as any).__mockWsSend(data);
+    }, JSON.stringify(msg));
+  }
+
+  function closeWs(page: any) {
+    return page.evaluate(() => (window as any).__mockWsClose());
+  }
+
+  test("connection indicator reverts to 'Connecting...' after WebSocket closes unexpectedly", async ({ page }) => {
+    await page.goto(attendeePath);
+
+    await expect(page.locator("text=Connected")).toBeVisible({ timeout: 3000 });
+
+    await closeWs(page);
+
+    await expect(page.locator("text=Connecting...")).toBeVisible({ timeout: 1000 });
+  });
+
+  test("active poll card remains visible while WebSocket is reconnecting", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-reconnect",
+        question: "Will this poll survive a reconnect?",
+        options: ["Yes", "No"],
+        counts: [0, 0],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Will this poll survive a reconnect?")).toBeVisible();
+
+    await closeWs(page);
+
+    await expect(page.locator("text=Connecting...")).toBeVisible({ timeout: 1000 });
+    await expect(page.locator("text=Will this poll survive a reconnect?")).toBeVisible();
+  });
+});
+
 test.describe("Attendee Page — without stored join data", () => {
   test("attendee page falls back to default 'Live Event' title", async ({ page }) => {
     await page.goto("/attend/unknown-token/99999");
