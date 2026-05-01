@@ -697,6 +697,200 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
   });
 });
 
+test.describe("Attendee Page — Q&A question submission", () => {
+  const attendeePath = "/attend/test-token/42";
+
+  const joinData = JSON.stringify({
+    eventId: 1,
+    displayName: "QA Submitter",
+    sessionToken: "tok-qa",
+    eventTitle: "QA Conference",
+    assignedId: 42,
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const _instances: any[] = [];
+      const _sentMessages: string[] = [];
+      (window as any).__mockWsInstances = _instances;
+      (window as any).__mockWsSentMessages = _sentMessages;
+      (window as any).__mockWsSend = (data: string) => {
+        for (const inst of _instances) {
+          if (inst.readyState === 1 && inst._onmessage) {
+            inst._onmessage({ data });
+          }
+        }
+      };
+
+      (window as any).WebSocket = class MockWebSocket {
+        static CONNECTING = 0;
+        static OPEN = 1;
+        static CLOSING = 2;
+        static CLOSED = 3;
+        CONNECTING = 0;
+        OPEN = 1;
+        CLOSING = 2;
+        CLOSED = 3;
+
+        readyState = 1;
+        url: string;
+        _onmessage: ((ev: any) => void) | null = null;
+        _onopen: ((ev: any) => void) | null = null;
+        _onclose: ((ev: any) => void) | null = null;
+        _onerror: ((ev: any) => void) | null = null;
+        _listeners: Record<string, Function[]> = {};
+
+        constructor(url: string) {
+          this.url = url;
+          _instances.push(this);
+          setTimeout(() => {
+            if (this._onopen) this._onopen({});
+            this._emit("open", {});
+          }, 50);
+        }
+
+        set onmessage(fn: ((ev: any) => void) | null) { this._onmessage = fn; }
+        get onmessage() { return this._onmessage; }
+        set onopen(fn: ((ev: any) => void) | null) { this._onopen = fn; }
+        get onopen() { return this._onopen; }
+        set onclose(fn: ((ev: any) => void) | null) { this._onclose = fn; }
+        get onclose() { return this._onclose; }
+        set onerror(fn: ((ev: any) => void) | null) { this._onerror = fn; }
+        get onerror() { return this._onerror; }
+
+        addEventListener(type: string, fn: Function) {
+          if (!this._listeners[type]) this._listeners[type] = [];
+          this._listeners[type].push(fn);
+          if (type === "message") this._onmessage = fn as any;
+          if (type === "open") {
+            this._onopen = fn as any;
+            if (this.readyState === 1) setTimeout(() => (fn as any)({}), 10);
+          }
+        }
+        removeEventListener(type: string, fn: Function) {
+          if (this._listeners[type]) {
+            this._listeners[type] = this._listeners[type].filter(f => f !== fn);
+          }
+        }
+        _emit(type: string, ev: any) {
+          for (const fn of (this._listeners[type] || [])) fn(ev);
+        }
+
+        send(data: string) {
+          _sentMessages.push(data);
+        }
+        close() {
+          this.readyState = 3;
+          if (this._onclose) this._onclose({});
+          this._emit("close", {});
+        }
+      };
+    });
+
+    await page.goto("/");
+    await page.evaluate(
+      ({ key, value }) => localStorage.setItem(key, value),
+      { key: "event-join-42", value: joinData },
+    );
+  });
+
+  function sendWsMessage(page: any, msg: object) {
+    return page.evaluate((data: string) => {
+      (window as any).__mockWsSend(data);
+    }, JSON.stringify(msg));
+  }
+
+  function getSentMessages(page: any): Promise<any[]> {
+    return page.evaluate(() =>
+      ((window as any).__mockWsSentMessages as string[]).map((s: string) => JSON.parse(s))
+    );
+  }
+
+  test("typing a question and clicking Raise Hand sends correct raise-hand WebSocket message", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+
+    await sendWsMessage(page, { type: "qa-opened" });
+
+    const textarea = page.locator("#question-text");
+    await expect(textarea).toBeVisible();
+
+    await textarea.fill("Why is the sky blue?");
+
+    const raiseBtn = page.locator("button", { has: page.locator("text=Raise Hand") });
+    await expect(raiseBtn).toBeEnabled();
+    await raiseBtn.click();
+
+    await page.waitForTimeout(200);
+
+    const sent = await getSentMessages(page);
+    const raiseHandMsg = sent.find((m: any) => m.type === "raise-hand");
+    expect(raiseHandMsg).toBeDefined();
+    expect(raiseHandMsg.raised).toBe(true);
+    expect(raiseHandMsg.questionText).toBe("Why is the sky blue?");
+  });
+
+  test("submitting a question shows 'The host has been notified' UI feedback", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, { type: "qa-opened" });
+
+    const textarea = page.locator("#question-text");
+    await expect(textarea).toBeVisible();
+    await textarea.fill("What time does the session end?");
+
+    const raiseBtn = page.locator("button", { has: page.locator("text=Raise Hand") });
+    await raiseBtn.click();
+
+    await expect(page.locator("text=The host has been notified")).toBeVisible();
+  });
+
+  test("raise-hand message with empty question sends no questionText field", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, { type: "qa-opened" });
+
+    await expect(page.locator("#question-text")).toBeVisible();
+
+    const raiseBtn = page.locator("button", { has: page.locator("text=Raise Hand") });
+    await expect(raiseBtn).toBeEnabled();
+    await raiseBtn.click();
+
+    await page.waitForTimeout(200);
+
+    const sent = await getSentMessages(page);
+    const raiseHandMsg = sent.find((m: any) => m.type === "raise-hand");
+    expect(raiseHandMsg).toBeDefined();
+    expect(raiseHandMsg.raised).toBe(true);
+    expect(raiseHandMsg.questionText).toBeUndefined();
+  });
+
+  test("textarea is disabled after raising hand so the question cannot be edited mid-queue", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, { type: "qa-opened" });
+
+    const textarea = page.locator("#question-text");
+    await expect(textarea).toBeVisible();
+    await expect(textarea).not.toBeDisabled();
+
+    await textarea.fill("A question I cannot change after raising");
+
+    const raiseBtn = page.locator("button", { has: page.locator("text=Raise Hand") });
+    await raiseBtn.click();
+
+    await expect(textarea).toBeDisabled();
+  });
+});
+
 test.describe("Attendee Page — without stored join data", () => {
   test("attendee page falls back to default 'Live Event' title", async ({ page }) => {
     await page.goto("/attend/unknown-token/99999");

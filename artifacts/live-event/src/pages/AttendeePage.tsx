@@ -280,7 +280,8 @@ export function AttendeePage() {
     if (!qaOpen && !raisedHand) return;
     const newValue = !raisedHand;
     setRaisedHand(newValue);
-    send({ type: "raise-hand", raised: newValue, questionText: newValue ? questionText.trim() : undefined });
+    const trimmed = questionText.trim();
+    send({ type: "raise-hand", raised: newValue, questionText: newValue && trimmed ? trimmed : undefined });
     await patchAttendee({ raisedHand: newValue });
   };
 
