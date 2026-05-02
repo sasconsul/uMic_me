@@ -656,6 +656,48 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     await expect(page.locator("text=Go")).toBeVisible();
   });
 
+  test("poll-updated with non-zero votes but showResults=false keeps percentages and vote count hidden", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-hidden-after-votes",
+        question: "Favourite editor?",
+        options: ["VS Code", "Vim"],
+        counts: [0, 0],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Favourite editor?")).toBeVisible();
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-hidden-after-votes",
+        question: "Favourite editor?",
+        options: ["VS Code", "Vim"],
+        counts: [3, 7],
+        totalVotes: 10,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Favourite editor?")).toBeVisible();
+    await expect(page.locator("text=VS Code")).toBeVisible();
+    await expect(page.locator("text=Vim")).toBeVisible();
+    await expect(page.locator("text=Vote now")).toBeVisible();
+    await expect(page.locator("text=30%")).toHaveCount(0);
+    await expect(page.locator("text=70%")).toHaveCount(0);
+    await expect(page.locator("text=10 votes")).toHaveCount(0);
+  });
+
   test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
