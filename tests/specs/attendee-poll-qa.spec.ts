@@ -1031,6 +1031,44 @@ test.describe("Attendee Page — Q&A question submission", () => {
 
     await expect(textarea).toBeDisabled();
   });
+
+  test("lowering hand after raising sends raise-hand with raised=false and no questionText, cancelling the question", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, { type: "qa-opened" });
+
+    const textarea = page.locator("#question-text");
+    await expect(textarea).toBeVisible();
+    await textarea.fill("Will this question be cancelled?");
+
+    const raiseBtn = page.locator("button", { has: page.locator("text=Raise Hand") });
+    await expect(raiseBtn).toBeEnabled();
+    await raiseBtn.click();
+
+    await page.waitForTimeout(200);
+
+    const lowerBtn = page.locator("button", { has: page.locator("text=Lower Hand") });
+    await expect(lowerBtn).toBeVisible();
+    await lowerBtn.click();
+
+    await page.waitForTimeout(200);
+
+    const sent = await getSentMessages(page);
+    const raiseHandMsgs = sent.filter((m: any) => m.type === "raise-hand");
+    expect(raiseHandMsgs.length).toBeGreaterThanOrEqual(2);
+
+    const raisedMsg = raiseHandMsgs[0];
+    expect(raisedMsg.raised).toBe(true);
+    expect(raisedMsg.questionText).toBe("Will this question be cancelled?");
+
+    const loweredMsg = raiseHandMsgs[raiseHandMsgs.length - 1];
+    expect(loweredMsg.raised).toBe(false);
+    expect(loweredMsg.questionText).toBeUndefined();
+
+    await expect(page.locator("button", { has: page.locator("text=Raise Hand") })).toBeVisible();
+  });
 });
 
 test.describe("Attendee Page — WebSocket reconnection recovery", () => {
