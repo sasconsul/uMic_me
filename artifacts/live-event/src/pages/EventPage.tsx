@@ -43,7 +43,9 @@ import {
   ChevronUp,
   FileText,
   Download,
+  Search,
 } from "lucide-react";
+import { highlightMatches, matchesQuery } from "@/lib/highlight";
 import { format, formatDistanceToNow } from "date-fns";
 
 async function apiFetch<T>(url: string, opts?: RequestInit): Promise<T> {
@@ -398,18 +400,32 @@ export function EventPage({ eventId }: EventPageProps) {
   const [captionLang, setCaptionLang] = useState("en-US");
   const [transcriptDownloading, setTranscriptDownloading] = useState(false);
 
+  // Host transcript view modal
+  interface HostTranscriptItem { id: number; text: string; createdAt: string; }
+  const [hostTranscriptOpen, setHostTranscriptOpen] = useState(false);
+  const [hostTranscriptItems, setHostTranscriptItems] = useState<HostTranscriptItem[]>([]);
+  const [hostTranscriptLoading, setHostTranscriptLoading] = useState(false);
+  const [hostTranscriptError, setHostTranscriptError] = useState<string | null>(null);
+  const [hostTranscriptSearch, setHostTranscriptSearch] = useState("");
+
+  const fetchTranscript = useCallback(async (): Promise<HostTranscriptItem[] | null> => {
+    if (!eventId) return null;
+    const res = await fetch(`/api/events/${eventId}/transcript`);
+    if (!res.ok) throw new Error("Failed to load transcript");
+    const data = (await res.json()) as { items: HostTranscriptItem[] };
+    return data.items;
+  }, [eventId]);
+
   const handleDownloadTranscript = useCallback(async () => {
     if (!eventId) return;
     setTranscriptDownloading(true);
     try {
-      const res = await fetch(`/api/events/${eventId}/transcript`);
-      if (!res.ok) throw new Error("Failed to load transcript");
-      const data = (await res.json()) as { items: Array<{ id: number; text: string; createdAt: string }> };
-      if (data.items.length === 0) {
+      const items = await fetchTranscript();
+      if (!items || items.length === 0) {
         toast.info("No transcript captured yet for this event.");
         return;
       }
-      const lines = data.items.map((item) => {
+      const lines = items.map((item) => {
         const ts = new Date(item.createdAt).toLocaleString();
         return `[${ts}] ${item.text}`;
       });
@@ -427,7 +443,25 @@ export function EventPage({ eventId }: EventPageProps) {
     } finally {
       setTranscriptDownloading(false);
     }
-  }, [eventId]);
+  }, [eventId, fetchTranscript]);
+
+  const loadHostTranscript = useCallback(async () => {
+    setHostTranscriptLoading(true);
+    setHostTranscriptError(null);
+    try {
+      const items = await fetchTranscript();
+      setHostTranscriptItems(items ?? []);
+    } catch {
+      setHostTranscriptError("Failed to load transcript. Please try again.");
+    } finally {
+      setHostTranscriptLoading(false);
+    }
+  }, [fetchTranscript]);
+
+  const handleOpenHostTranscript = useCallback(() => {
+    setHostTranscriptOpen(true);
+    void loadHostTranscript();
+  }, [loadHostTranscript]);
 
   const browserTranscription = useLiveTranscription({ send, isBroadcasting, lang: captionLang });
   const serverTranscription = useServerTranscription({
@@ -963,23 +997,33 @@ export function EventPage({ eventId }: EventPageProps) {
               ) : (
                 <p className="text-xs text-muted-foreground">Send live captions of your audio to all attendees.</p>
               )}
-              <button
-                type="button"
-                onClick={handleDownloadTranscript}
-                disabled={transcriptDownloading}
-                data-testid="host-download-transcript"
-                className="w-full inline-flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg font-semibold border border-border bg-background hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {transcriptDownloading ? (
-                  <>
-                    <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Preparing transcript…
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3.5 h-3.5" aria-hidden="true" /> Download Full Transcript
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleOpenHostTranscript}
+                  data-testid="host-view-transcript"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg font-semibold border border-border bg-background hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <FileText className="w-3.5 h-3.5" aria-hidden="true" /> View &amp; Search
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadTranscript}
+                  disabled={transcriptDownloading}
+                  data-testid="host-download-transcript"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg font-semibold border border-border bg-background hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {transcriptDownloading ? (
+                    <>
+                      <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Preparing…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" aria-hidden="true" /> Download
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1959,6 +2003,100 @@ export function EventPage({ eventId }: EventPageProps) {
           </div>
         </div>
       </main>
+
+      {hostTranscriptOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="host-transcript-title"
+          data-testid="host-transcript-panel"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-0 sm:px-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setHostTranscriptOpen(false); }}
+        >
+          <div className="w-full sm:max-w-2xl bg-background border border-border rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h2 id="host-transcript-title" className="font-semibold text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
+                Event Transcript
+              </h2>
+              <button
+                type="button"
+                onClick={() => setHostTranscriptOpen(false)}
+                aria-label="Close transcript"
+                className="p-1.5 rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="px-4 py-2 border-b border-border">
+              <label htmlFor="host-transcript-search" className="sr-only">Search transcript</label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" aria-hidden="true" />
+                <input
+                  id="host-transcript-search"
+                  type="search"
+                  value={hostTranscriptSearch}
+                  onChange={(e) => setHostTranscriptSearch(e.target.value)}
+                  placeholder="Search transcript…"
+                  data-testid="host-transcript-search"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
+                />
+              </div>
+            </div>
+            <div
+              data-testid="host-transcript-scroll"
+              className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm leading-relaxed"
+            >
+              {hostTranscriptLoading && hostTranscriptItems.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">Loading transcript…</p>
+              ) : hostTranscriptError ? (
+                <p className="text-destructive text-center py-6">{hostTranscriptError}</p>
+              ) : hostTranscriptItems.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">
+                  No transcript captured yet for this event.
+                </p>
+              ) : (() => {
+                  const filtered = hostTranscriptItems.filter((item) => matchesQuery(item.text, hostTranscriptSearch));
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-muted-foreground text-center py-6" data-testid="host-transcript-no-matches">
+                        No matches for &ldquo;{hostTranscriptSearch.trim()}&rdquo;.
+                      </p>
+                    );
+                  }
+                  return filtered.map((item) => (
+                    <div key={item.id} className="space-y-0.5">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {new Date(item.createdAt).toLocaleTimeString()}
+                      </p>
+                      <p className="text-foreground">
+                        {highlightMatches(item.text, hostTranscriptSearch)}
+                      </p>
+                    </div>
+                  ));
+                })()}
+            </div>
+            <div className="px-4 py-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {(() => {
+                  const q = hostTranscriptSearch.trim();
+                  if (!q) return `${hostTranscriptItems.length} line${hostTranscriptItems.length === 1 ? "" : "s"}`;
+                  const matchCount = hostTranscriptItems.filter((item) => matchesQuery(item.text, q)).length;
+                  return `${matchCount} match${matchCount === 1 ? "" : "es"} of ${hostTranscriptItems.length}`;
+                })()}
+              </span>
+              <button
+                type="button"
+                onClick={() => void loadHostTranscript()}
+                disabled={hostTranscriptLoading}
+                className="text-primary hover:underline disabled:opacity-50"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

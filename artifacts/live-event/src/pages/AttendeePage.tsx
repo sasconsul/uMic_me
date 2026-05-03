@@ -4,7 +4,8 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink, Captions, CaptionsOff, FileText, X } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink, Captions, CaptionsOff, FileText, X, Search } from "lucide-react";
+import { highlightMatches, matchesQuery } from "@/lib/highlight";
 
 interface StoredJoinData {
   eventId: number;
@@ -84,6 +85,7 @@ export function AttendeePage() {
   const [transcriptItems, setTranscriptItems] = useState<TranscriptItem[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const [transcriptSearch, setTranscriptSearch] = useState("");
   const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
   const transcriptLocalIdRef = useRef(0);
 
@@ -907,6 +909,23 @@ export function AttendeePage() {
                 <X className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
+            <div className="px-4 py-2 border-b border-border">
+              <label htmlFor="attendee-transcript-search" className="sr-only">
+                Search transcript
+              </label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" aria-hidden="true" />
+                <input
+                  id="attendee-transcript-search"
+                  type="search"
+                  value={transcriptSearch}
+                  onChange={(e) => setTranscriptSearch(e.target.value)}
+                  placeholder="Search transcript…"
+                  data-testid="attendee-transcript-search"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2"
+                />
+              </div>
+            </div>
             <div
               ref={transcriptScrollRef}
               data-testid="attendee-transcript-scroll"
@@ -921,21 +940,36 @@ export function AttendeePage() {
                 <p className="text-muted-foreground text-center py-6">
                   No transcript yet. Captions will appear here once the host starts speaking.
                 </p>
-              ) : (
-                transcriptItems.map((item) => (
-                  <p key={item.id} className="text-foreground">
-                    {item.text}
-                  </p>
-                ))
-              )}
-              {transcriptionEnabled && captionInterim && (
+              ) : (() => {
+                  const filtered = transcriptItems.filter((item) => matchesQuery(item.text, transcriptSearch));
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-muted-foreground text-center py-6" data-testid="attendee-transcript-no-matches">
+                        No matches for &ldquo;{transcriptSearch.trim()}&rdquo;.
+                      </p>
+                    );
+                  }
+                  return filtered.map((item) => (
+                    <p key={item.id} className="text-foreground">
+                      {highlightMatches(item.text, transcriptSearch)}
+                    </p>
+                  ));
+                })()}
+              {transcriptionEnabled && captionInterim && matchesQuery(captionInterim, transcriptSearch) && (
                 <p className="text-muted-foreground italic" data-testid="attendee-transcript-interim">
-                  {captionInterim}
+                  {highlightMatches(captionInterim, transcriptSearch)}
                 </p>
               )}
             </div>
             <div className="px-4 py-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-              <span>{transcriptItems.length} line{transcriptItems.length === 1 ? "" : "s"}</span>
+              <span>
+                {(() => {
+                  const q = transcriptSearch.trim();
+                  if (!q) return `${transcriptItems.length} line${transcriptItems.length === 1 ? "" : "s"}`;
+                  const matchCount = transcriptItems.filter((item) => matchesQuery(item.text, q)).length;
+                  return `${matchCount} match${matchCount === 1 ? "" : "es"} of ${transcriptItems.length}`;
+                })()}
+              </span>
               <button
                 type="button"
                 onClick={() => void loadTranscript()}
