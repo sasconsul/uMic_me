@@ -75,6 +75,7 @@ export function AttendeePage() {
   const [captionFinals, setCaptionFinals] = useState<CaptionLine[]>([]);
   const [captionInterim, setCaptionInterim] = useState("");
   const [captionLang, setCaptionLang] = useState<string | null>(null);
+  const [captionMode, setCaptionMode] = useState<"browser" | "server">("browser");
   const captionIdRef = useRef(0);
 
   // Full event transcript panel
@@ -234,9 +235,10 @@ export function AttendeePage() {
           setCaptionInterim("");
           break;
         case "transcription-enabled": {
-          const { lang } = msg as { lang?: string };
+          const { lang, mode } = msg as { lang?: string; mode?: string };
           setTranscriptionEnabled(true);
           if (typeof lang === "string" && lang) setCaptionLang(lang);
+          setCaptionMode(mode === "server" ? "server" : "browser");
           break;
         }
         case "transcription-disabled":
@@ -244,6 +246,7 @@ export function AttendeePage() {
           setCaptionFinals([]);
           setCaptionInterim("");
           setCaptionLang(null);
+          setCaptionMode("browser");
           break;
         case "transcript-snapshot": {
           const { finals, interim, lang } = msg as { finals?: string[]; interim?: string; lang?: string };
@@ -968,6 +971,15 @@ export function AttendeePage() {
                   <p data-testid="caption-interim" className="text-white/70 italic">{captionInterim}</p>
                 )}
               </>
+            )}
+            {captionMode === "server" && (
+              <p
+                data-testid="caption-server-badge"
+                className="text-[10px] uppercase tracking-wide text-white/50 inline-flex items-center gap-1"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-white/60" aria-hidden="true" />
+                Captioned by server
+              </p>
             )}
           </div>
         </div>

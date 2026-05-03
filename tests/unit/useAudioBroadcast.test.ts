@@ -113,6 +113,7 @@ describe("useAudioBroadcast — pre-existing handlers (regression baseline)", ()
     const keys = Object.keys(result.current).sort();
     expect(keys).toEqual([
       "createPeerForAttendee",
+      "getBroadcastStream",
       "handlePaSourceDisconnected",
       "handlePaSourceIce",
       "handlePaSourceOffer",

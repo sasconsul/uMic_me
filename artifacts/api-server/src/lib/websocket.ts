@@ -46,6 +46,7 @@ export interface Room {
   muteUntilCalled: boolean;
   isBroadcasting: boolean;
   transcriptionEnabled: boolean;
+  transcriptionMode: "browser" | "server";
   transcriptFinals: string[];
   transcriptInterim: string;
   transcriptLang: string | null;
@@ -69,6 +70,45 @@ export function getPaSourceToken(eventId: number): string | undefined {
 }
 
 const rooms = new Map<number, Room>();
+
+export function getRoom(eventId: number): Room | undefined {
+  return rooms.get(eventId);
+}
+
+/**
+ * Inject a transcript chunk into a room from any source (host browser STT
+ * via the `transcript-chunk` WS message, or the server-side STT fallback
+ * REST endpoint). Sanitizes input, updates room state, persists finals,
+ * and broadcasts to attendees.
+ */
+export function injectTranscript(room: Room, rawText: string, isFinal: boolean, rawLang: string | null) {
+  const text = (rawText || "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 500);
+  if (!text) return;
+  const lang = rawLang ? rawLang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || null : null;
+  if (lang) room.transcriptLang = lang;
+  if (isFinal) {
+    room.transcriptFinals.push(text);
+    if (room.transcriptFinals.length > 5) {
+      room.transcriptFinals = room.transcriptFinals.slice(-5);
+    }
+    room.transcriptInterim = "";
+    const persistEventId = room.eventId;
+    const persistLang = lang ?? room.transcriptLang ?? null;
+    db.insert(eventTranscriptsTable)
+      .values({ eventId: persistEventId, text, lang: persistLang })
+      .catch((err) => {
+        logger.error({ err, eventId: persistEventId }, "Failed to persist transcript chunk");
+      });
+  } else {
+    room.transcriptInterim = text;
+  }
+  broadcastToAttendees(room, {
+    type: "transcript-chunk",
+    text,
+    isFinal,
+    lang: lang ?? room.transcriptLang ?? undefined,
+  });
+}
 
 export function broadcastToRoom(room: Room, message: object, exclude?: WebSocket) {
   const data = JSON.stringify(message);
@@ -201,6 +241,7 @@ export function setupWebSocketServer(server: Server) {
         currentRoom.hostWs = undefined;
         if (currentRoom.transcriptionEnabled) {
           currentRoom.transcriptionEnabled = false;
+          currentRoom.transcriptionMode = "browser";
           currentRoom.transcriptFinals = [];
           currentRoom.transcriptInterim = "";
           currentRoom.transcriptLang = null;
@@ -287,7 +328,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== resolvedUserId) {
             // Another verified host already owns this room
@@ -355,7 +396,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           }
 
@@ -379,7 +420,7 @@ export function setupWebSocketServer(server: Server) {
             ws.send(JSON.stringify({ type: "stream-available" }));
           }
           if (currentRoom.transcriptionEnabled) {
-            ws.send(JSON.stringify({ type: "transcription-enabled", lang: currentRoom.transcriptLang ?? undefined }));
+            ws.send(JSON.stringify({ type: "transcription-enabled", lang: currentRoom.transcriptLang ?? undefined, mode: currentRoom.transcriptionMode }));
             if (currentRoom.transcriptFinals.length > 0 || currentRoom.transcriptInterim) {
               ws.send(JSON.stringify({
                 type: "transcript-snapshot",
@@ -452,6 +493,7 @@ export function setupWebSocketServer(server: Server) {
           broadcastToAttendees(currentRoom, { type: "stream-ended" });
           if (currentRoom.transcriptionEnabled) {
             currentRoom.transcriptionEnabled = false;
+            currentRoom.transcriptionMode = "browser";
             currentRoom.transcriptFinals = [];
             currentRoom.transcriptInterim = "";
             currentRoom.transcriptLang = null;
@@ -469,7 +511,9 @@ export function setupWebSocketServer(server: Server) {
             ? msg.lang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || null
             : null;
           currentRoom.transcriptLang = lang;
-          broadcastToAttendees(currentRoom, { type: "transcription-enabled", lang: lang ?? undefined });
+          const mode: "browser" | "server" = msg.mode === "server" ? "server" : "browser";
+          currentRoom.transcriptionMode = mode;
+          broadcastToAttendees(currentRoom, { type: "transcription-enabled", lang: lang ?? undefined, mode });
           break;
         }
 
@@ -477,6 +521,7 @@ export function setupWebSocketServer(server: Server) {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           if (!currentRoom.transcriptionEnabled) break;
           currentRoom.transcriptionEnabled = false;
+          currentRoom.transcriptionMode = "browser";
           currentRoom.transcriptFinals = [];
           currentRoom.transcriptInterim = "";
           currentRoom.transcriptLang = null;
@@ -487,39 +532,10 @@ export function setupWebSocketServer(server: Server) {
         case "transcript-chunk": {
           if (!sessionUserId || !currentRoom || currentRole !== "host") return;
           if (!currentRoom.transcriptionEnabled) return;
-          const text = typeof msg.text === "string"
-            ? msg.text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, 500)
-            : "";
-          if (!text) return;
+          const text = typeof msg.text === "string" ? msg.text : "";
           const isFinal = Boolean(msg.isFinal);
-          const lang = typeof msg.lang === "string"
-            ? msg.lang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || null
-            : null;
-          if (lang) currentRoom.transcriptLang = lang;
-          if (isFinal) {
-            currentRoom.transcriptFinals.push(text);
-            if (currentRoom.transcriptFinals.length > 5) {
-              currentRoom.transcriptFinals = currentRoom.transcriptFinals.slice(-5);
-            }
-            currentRoom.transcriptInterim = "";
-            // Persist the final chunk so attendees and the host can review the
-            // full transcript later (live, on reconnect, and after the event ends).
-            const persistEventId = currentRoom.eventId;
-            const persistLang = lang ?? currentRoom.transcriptLang ?? null;
-            db.insert(eventTranscriptsTable)
-              .values({ eventId: persistEventId, text, lang: persistLang })
-              .catch((err) => {
-                logger.error({ err, eventId: persistEventId }, "Failed to persist transcript chunk");
-              });
-          } else {
-            currentRoom.transcriptInterim = text;
-          }
-          broadcastToAttendees(currentRoom, {
-            type: "transcript-chunk",
-            text,
-            isFinal,
-            lang: lang ?? currentRoom.transcriptLang ?? undefined,
-          });
+          const lang = typeof msg.lang === "string" ? msg.lang : null;
+          injectTranscript(currentRoom, text, isFinal, lang);
           break;
         }
 
@@ -755,7 +771,7 @@ export function setupWebSocketServer(server: Server) {
 
           let room = rooms.get(eventId);
           if (!room) {
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           }
 

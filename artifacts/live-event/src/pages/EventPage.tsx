@@ -10,6 +10,7 @@ import { useUpload } from "@workspace/object-storage-web";
 import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioBroadcast } from "@/hooks/useAudioBroadcast";
 import { useLiveTranscription } from "@/hooks/useLiveTranscription";
+import { useServerTranscription } from "@/hooks/useServerTranscription";
 import { toast } from "sonner";
 import {
   Radio,
@@ -391,6 +392,7 @@ export function EventPage({ eventId }: EventPageProps) {
     handlePaSourceOffer,
     handlePaSourceIce,
     handlePaSourceDisconnected,
+    getBroadcastStream,
   } = useAudioBroadcast({ send });
 
   const [captionLang, setCaptionLang] = useState("en-US");
@@ -427,14 +429,26 @@ export function EventPage({ eventId }: EventPageProps) {
     }
   }, [eventId]);
 
-  const {
-    enabled: transcriptionEnabled,
-    supported: transcriptionSupported,
-    latestPreview: transcriptionPreview,
-    startError: transcriptionError,
-    enable: enableTranscription,
-    disable: disableTranscription,
-  } = useLiveTranscription({ send, isBroadcasting, lang: captionLang });
+  const browserTranscription = useLiveTranscription({ send, isBroadcasting, lang: captionLang });
+  const serverTranscription = useServerTranscription({
+    send,
+    isBroadcasting,
+    lang: captionLang,
+    eventId,
+    getStream: getBroadcastStream,
+  });
+
+  // Prefer the native browser STT when available (lower latency, free).
+  // Fall back to the server-side STT on Safari / Firefox so captions still work.
+  const useServerFallback = !browserTranscription.supported && serverTranscription.supported;
+  const activeTranscription = useServerFallback ? serverTranscription : browserTranscription;
+  const transcriptionEnabled = activeTranscription.enabled;
+  const transcriptionSupported = browserTranscription.supported || serverTranscription.supported;
+  const transcriptionPreview = activeTranscription.latestPreview;
+  const transcriptionError = activeTranscription.startError;
+  const enableTranscription = activeTranscription.enable;
+  const disableTranscription = activeTranscription.disable;
+  const transcriptionMode: "browser" | "server" = useServerFallback ? "server" : "browser";
 
   // Keep refs in sync with latest function instances
   isBroadcastingRef.current = isBroadcasting;
@@ -917,15 +931,30 @@ export function EventPage({ eventId }: EventPageProps) {
                   </a>{" "}
                   to enable captions.
                 </p>
+              ) : useServerFallback && !transcriptionEnabled ? (
+                <p data-testid="host-captions-server-hint" className="text-xs text-muted-foreground">
+                  Your browser doesn't support on-device captions, so we'll caption you on the server instead.
+                </p>
               ) : !isBroadcasting ? (
                 <p className="text-xs text-muted-foreground">Start the broadcast to enable live captions.</p>
               ) : transcriptionEnabled ? (
-                <div
-                  data-testid="host-caption-preview"
-                  aria-live="polite"
-                  className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-2 min-h-[2rem]"
-                >
-                  {transcriptionPreview || "Listening…"}
+                <div className="space-y-1">
+                  <div
+                    data-testid="host-caption-preview"
+                    aria-live="polite"
+                    className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-2 min-h-[2rem]"
+                  >
+                    {transcriptionPreview || "Listening…"}
+                  </div>
+                  {transcriptionMode === "server" && (
+                    <p
+                      data-testid="host-captions-server-badge"
+                      className="text-[11px] text-muted-foreground inline-flex items-center gap-1"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
+                      Captioned by server
+                    </p>
+                  )}
                 </div>
               ) : transcriptionError ? (
                 <p data-testid="host-caption-error" role="alert" className="text-xs text-red-500">

@@ -233,6 +233,19 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     });
   }, [relayTrackToAllPeers]);
 
+  /**
+   * Returns the current host audio MediaStream (mic or PA-relayed) so other
+   * hooks (e.g. server-side transcription) can tap the same audio source.
+   * Prefers the relayed PA track when present, otherwise the host mic stream.
+   */
+  const getBroadcastStream = useCallback((): MediaStream | null => {
+    const paTrack = activeRelayTrackRef.current;
+    if (paTrack && paTrack.readyState === "live") {
+      return new MediaStream([paTrack]);
+    }
+    return streamRef.current;
+  }, []);
+
   return {
     isBroadcasting,
     startBroadcast,
@@ -246,5 +259,6 @@ export function useAudioBroadcast({ send }: UseAudioBroadcastOptions) {
     handlePaSourceOffer,
     handlePaSourceIce,
     handlePaSourceDisconnected,
+    getBroadcastStream,
   };
 }
