@@ -47,6 +47,9 @@ export function AttendeePage() {
   const [feedbackName, setFeedbackName] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
+  const [showReconnectBanner, setShowReconnectBanner] = useState(false);
+  const wasEverConnected = useRef(false);
+
   interface PollSnapshot {
     id: string;
     pollType?: string;
@@ -276,6 +279,15 @@ export function AttendeePage() {
     wsSendRef.current = send;
   }, [send]);
 
+  useEffect(() => {
+    if (connected) {
+      wasEverConnected.current = true;
+      setShowReconnectBanner(false);
+    } else if (wasEverConnected.current) {
+      setShowReconnectBanner(true);
+    }
+  }, [connected]);
+
   const handleRaiseHand = async () => {
     if (!qaOpen && !raisedHand) return;
     const newValue = !raisedHand;
@@ -438,6 +450,24 @@ export function AttendeePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
+      {showReconnectBanner && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-testid="reconnect-banner"
+          className="fixed top-0 inset-x-0 z-50 flex items-center justify-between gap-3 bg-yellow-500 text-yellow-950 px-4 py-3 text-sm font-medium shadow-md"
+        >
+          <span>Connection lost — trying to reconnect…</span>
+          <button
+            onClick={() => setShowReconnectBanner(false)}
+            aria-label="Dismiss reconnection notice"
+            className="shrink-0 rounded p-0.5 hover:bg-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-900"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <main id="main-content" className="w-full max-w-sm space-y-6 text-center">
         <div className="space-y-3">
           {eventLogoUrl ? (

@@ -1075,6 +1075,70 @@ test.describe("Attendee Page — WebSocket reconnection recovery", () => {
     await expect(page.locator("text=Connecting...")).toBeVisible({ timeout: 1000 });
     await expect(page.locator("text=Will this poll survive a reconnect?")).toBeVisible();
   });
+
+  test("reconnect banner appears when WebSocket closes unexpectedly", async ({ page }) => {
+    await page.goto(attendeePath);
+
+    await expect(page.locator("text=Connected")).toBeVisible({ timeout: 3000 });
+
+    await closeWs(page);
+
+    await expect(page.locator("[data-testid='reconnect-banner']")).toBeVisible({ timeout: 1000 });
+    await expect(page.locator("text=Connection lost — trying to reconnect…")).toBeVisible({ timeout: 1000 });
+  });
+
+  test("reconnect banner disappears once the connection is restored", async ({ page }) => {
+    await page.goto(attendeePath);
+
+    await expect(page.locator("text=Connected")).toBeVisible({ timeout: 3000 });
+
+    await closeWs(page);
+
+    await expect(page.locator("[data-testid='reconnect-banner']")).toBeVisible({ timeout: 1000 });
+
+    await expect(page.locator("text=Connected")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("[data-testid='reconnect-banner']")).toHaveCount(0);
+  });
+
+  test("reconnect banner does not appear on initial page load before first connection", async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).WebSocket = class BlockedWebSocket {
+        static CONNECTING = 0;
+        static OPEN = 1;
+        static CLOSING = 2;
+        static CLOSED = 3;
+        CONNECTING = 0;
+        OPEN = 1;
+        CLOSING = 2;
+        CLOSED = 3;
+        readyState = 0;
+        url: string;
+        _onopen: ((ev: any) => void) | null = null;
+        _onclose: ((ev: any) => void) | null = null;
+        _onmessage: ((ev: any) => void) | null = null;
+        _onerror: ((ev: any) => void) | null = null;
+        set onopen(fn: any) { this._onopen = fn; }
+        get onopen() { return this._onopen; }
+        set onclose(fn: any) { this._onclose = fn; }
+        get onclose() { return this._onclose; }
+        set onmessage(fn: any) { this._onmessage = fn; }
+        get onmessage() { return this._onmessage; }
+        set onerror(fn: any) { this._onerror = fn; }
+        get onerror() { return this._onerror; }
+        constructor(url: string) { this.url = url; }
+        send(_data: string) {}
+        close() {}
+        addEventListener() {}
+        removeEventListener() {}
+      };
+    });
+
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("[data-testid='reconnect-banner']")).toHaveCount(0);
+    await expect(page.locator("text=Connecting...")).toBeVisible();
+  });
 });
 
 test.describe("Attendee Page — without stored join data", () => {
