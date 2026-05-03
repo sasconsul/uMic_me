@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListFeatureRequests,
   useGetFeatureBoardStats,
@@ -7,13 +7,21 @@ import {
 } from "@workspace/api-client-react";
 import { FeatureCard } from "@/components/FeatureCard";
 import { SubmitIdeaModal } from "@/components/SubmitIdeaModal";
+import { AdminUnlockModal, loadAdminSecret } from "@/components/AdminUnlockModal";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Lightbulb, Trophy, MessagesSquare, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Lightbulb, Trophy, MessagesSquare, CheckCircle2, Shield } from "lucide-react";
 import { FeatureRequest, ListFeatureRequestsStatus } from "@workspace/api-client-react";
 
 export default function Home() {
   const [statusFilter, setStatusFilter] = useState<ListFeatureRequestsStatus>("all");
+  const [adminSecret, setAdminSecret] = useState<string>("");
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+
+  useEffect(() => {
+    setAdminSecret(loadAdminSecret());
+  }, []);
 
   const { data: stats, isLoading: statsLoading } = useGetFeatureBoardStats({
     query: {
@@ -44,13 +52,41 @@ export default function Home() {
               <p className="text-sm text-muted-foreground font-medium hidden sm:block">Help shape the future of live events</p>
             </div>
           </div>
-          <div className="hidden sm:block">
-             <SubmitIdeaModal />
+          <div className="flex items-center gap-2">
+            <Button
+              variant={adminSecret ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setAdminModalOpen(true)}
+              className={adminSecret ? "gap-1.5" : "gap-1.5 text-muted-foreground"}
+              data-testid="admin-toggle-button"
+              title={adminSecret ? "Admin mode active — click to manage" : "Admin login"}
+            >
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">{adminSecret ? "Admin" : "Admin"}</span>
+            </Button>
+            <div className="hidden sm:block">
+              <SubmitIdeaModal />
+            </div>
           </div>
         </div>
       </header>
 
+      <AdminUnlockModal
+        open={adminModalOpen}
+        onOpenChange={setAdminModalOpen}
+        adminSecret={adminSecret}
+        onSecretChange={setAdminSecret}
+      />
+
       <main className="container max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {/* Admin mode banner */}
+        {adminSecret && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl text-sm font-medium text-primary animate-in fade-in slide-in-from-top-2 duration-300">
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            Admin mode active — status controls are enabled on each request.
+          </div>
+        )}
+
         {/* Stats Section */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {statsLoading ? (
@@ -97,7 +133,7 @@ export default function Home() {
               <div className="flex items-center gap-2 text-primary font-bold text-sm tracking-widest uppercase mb-4">
                 <Trophy className="w-4 h-4" /> Top Request
               </div>
-              <FeatureCard request={stats.topRequest} />
+              <FeatureCard request={stats.topRequest} adminSecret={adminSecret} />
             </div>
           </section>
         )}
@@ -141,7 +177,7 @@ export default function Home() {
                   key={request.id} 
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <FeatureCard request={request} />
+                  <FeatureCard request={request} adminSecret={adminSecret} />
                 </div>
               ))
             )}

@@ -1,4 +1,10 @@
-import { useVoteFeatureRequest, getListFeatureRequestsQueryKey, getGetFeatureBoardStatsQueryKey, FeatureRequest } from "@workspace/api-client-react";
+import {
+  useVoteFeatureRequest,
+  useUpdateFeatureRequestStatus,
+  getListFeatureRequestsQueryKey,
+  getGetFeatureBoardStatsQueryKey,
+  FeatureRequest,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useVoterFingerprint } from "@/lib/voter-fp";
@@ -7,20 +13,27 @@ import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+type FeatureStatus = "open" | "planned" | "done";
+
 interface FeatureCardProps {
   request: FeatureRequest;
+  adminSecret?: string;
 }
 
-export function FeatureCard({ request }: FeatureCardProps) {
+export function FeatureCard({ request, adminSecret }: FeatureCardProps) {
   const fp = useVoterFingerprint();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const voteMutation = useVoteFeatureRequest();
+  const updateStatus = useUpdateFeatureRequestStatus(
+    adminSecret
+      ? { request: { headers: { "X-Admin-Secret": adminSecret } } as RequestInit }
+      : undefined,
+  );
 
   const handleVote = () => {
     if (!fp) return;
 
-    // Optimistic update
     const queryKeyAll = getListFeatureRequestsQueryKey({ status: "all" });
     const queryKeyOpen = getListFeatureRequestsQueryKey({ status: "open" });
     const queryKeyPlanned = getListFeatureRequestsQueryKey({ status: "planned" });
@@ -58,7 +71,6 @@ export function FeatureCard({ request }: FeatureCardProps) {
           queryClient.invalidateQueries({ queryKey: getGetFeatureBoardStatsQueryKey() });
         },
         onError: () => {
-          // Revert on error
           queryClient.invalidateQueries({ queryKey: getListFeatureRequestsQueryKey() });
           toast({
             title: "Error",
@@ -66,6 +78,27 @@ export function FeatureCard({ request }: FeatureCardProps) {
             variant: "destructive",
           });
         }
+      }
+    );
+  };
+
+  const handleStatusChange = (status: FeatureStatus) => {
+    if (!adminSecret) return;
+    updateStatus.mutate(
+      { id: request.id, data: { status } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListFeatureRequestsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetFeatureBoardStatsQueryKey() });
+          toast({ title: "Status updated", description: `Marked as ${status}.` });
+        },
+        onError: (err: any) => {
+          if (err?.status === 401) {
+            toast({ title: "Unauthorized", description: "Invalid admin secret.", variant: "destructive" });
+          } else {
+            toast({ title: "Update failed", description: "Could not update status.", variant: "destructive" });
+          }
+        },
       }
     );
   };
@@ -97,9 +130,29 @@ export function FeatureCard({ request }: FeatureCardProps) {
           <h3 className="font-semibold text-base text-card-foreground leading-tight truncate">
             {request.title}
           </h3>
-          <Badge variant="secondary" className={cn("capitalize rounded-md border-none shadow-none font-medium", statusColors[request.status])}>
-            {request.status}
-          </Badge>
+          {adminSecret ? (
+            <div className="flex-shrink-0">
+              <label htmlFor={`card-status-${request.id}`} className="sr-only">
+                Status for {request.title}
+              </label>
+              <select
+                id={`card-status-${request.id}`}
+                value={request.status}
+                onChange={(e) => handleStatusChange(e.target.value as FeatureStatus)}
+                disabled={updateStatus.isPending}
+                className="px-2.5 py-1 rounded-md border bg-background text-xs font-semibold disabled:opacity-50 cursor-pointer"
+                data-testid={`card-status-select-${request.id}`}
+              >
+                <option value="open">Open</option>
+                <option value="planned">Planned</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          ) : (
+            <Badge variant="secondary" className={cn("capitalize rounded-md border-none shadow-none font-medium", statusColors[request.status])}>
+              {request.status}
+            </Badge>
+          )}
         </div>
         
         <p className="text-sm text-muted-foreground mt-2 mb-3 line-clamp-2 md:line-clamp-none">
