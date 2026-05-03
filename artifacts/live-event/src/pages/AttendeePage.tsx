@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink, Captions, CaptionsOff } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -68,6 +68,14 @@ export function AttendeePage() {
   const [directedResponse, setDirectedResponse] = useState("");
   const [directedResponseSent, setDirectedResponseSent] = useState(false);
 
+  // Live captions
+  const [transcriptionEnabled, setTranscriptionEnabled] = useState(false);
+  const [captionsOn, setCaptionsOn] = useState(false);
+  interface CaptionLine { id: number; text: string; }
+  const [captionFinals, setCaptionFinals] = useState<CaptionLine[]>([]);
+  const [captionInterim, setCaptionInterim] = useState("");
+  const captionIdRef = useRef(0);
+
   useEffect(() => {
     const stored =
       localStorage.getItem(`event-join-${attendeeId}`) ??
@@ -84,6 +92,8 @@ export function AttendeePage() {
       if (data.assignedId !== undefined) setAssignedId(data.assignedId);
     }
     if (token) setQrToken(token);
+    const storedCaptions = localStorage.getItem(`captions-on-${attendeeId}`);
+    if (storedCaptions === "true") setCaptionsOn(true);
     const alreadySubmitted =
       (localStorage.getItem(`feedback-submitted-${attendeeId}`) ??
         sessionStorage.getItem(`feedback-submitted-${attendeeId}`)) === "true";
@@ -209,7 +219,41 @@ export function AttendeePage() {
         case "stream-ended":
           setStreamAvailable(false);
           disconnectRef.current();
+          setTranscriptionEnabled(false);
+          setCaptionFinals([]);
+          setCaptionInterim("");
           break;
+        case "transcription-enabled":
+          setTranscriptionEnabled(true);
+          break;
+        case "transcription-disabled":
+          setTranscriptionEnabled(false);
+          setCaptionFinals([]);
+          setCaptionInterim("");
+          break;
+        case "transcript-snapshot": {
+          const { finals, interim } = msg as { finals?: string[]; interim?: string };
+          if (Array.isArray(finals)) {
+            const seeded = finals.slice(-5).map((text) => ({ id: ++captionIdRef.current, text }));
+            setCaptionFinals(seeded);
+          }
+          setCaptionInterim(typeof interim === "string" ? interim : "");
+          break;
+        }
+        case "transcript-chunk": {
+          const { text, isFinal } = msg as { text: string; isFinal: boolean };
+          if (!text) break;
+          if (isFinal) {
+            setCaptionInterim("");
+            setCaptionFinals((prev) => {
+              const next = [...prev, { id: ++captionIdRef.current, text }];
+              return next.slice(-5);
+            });
+          } else {
+            setCaptionInterim(text);
+          }
+          break;
+        }
         case "session-ended":
           setEventClosed(true);
           disconnectRef.current();
@@ -300,6 +344,18 @@ export function AttendeePage() {
   const handleCastVote = (optionIndex: number) => {
     if (!activePoll?.active || myVote !== null) return;
     send({ type: "cast-vote", optionIndex });
+  };
+
+  const handleToggleCaptions = () => {
+    setCaptionsOn((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(`captions-on-${attendeeId}`, next ? "true" : "false");
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
   };
 
   const handleSubmitDirectedResponse = () => {
@@ -545,6 +601,32 @@ export function AttendeePage() {
           </button>
         )}
 
+        {transcriptionEnabled && (
+          <button
+            type="button"
+            onClick={handleToggleCaptions}
+            aria-pressed={captionsOn}
+            data-testid="attendee-captions-toggle"
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+              captionsOn
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-card border-2 border-border hover:border-primary/50 hover:bg-primary/5"
+            }`}
+          >
+            {captionsOn ? (
+              <>
+                <CaptionsOff className="w-4 h-4" aria-hidden="true" />
+                Hide Captions
+              </>
+            ) : (
+              <>
+                <Captions className="w-4 h-4" aria-hidden="true" />
+                Show Captions
+              </>
+            )}
+          </button>
+        )}
+
         <div className="bg-card border border-border rounded-xl p-6 space-y-3" aria-live="polite" aria-atomic="true">
           <div className="flex items-center justify-center gap-2">
             {isReceiving ? (
@@ -737,6 +819,32 @@ export function AttendeePage() {
           Attendee #{assignedId ?? attendeeId}
         </p>
       </main>
+
+      {transcriptionEnabled && captionsOn && (
+        <div
+          role="region"
+          aria-live="polite"
+          aria-atomic="false"
+          aria-label="Live captions"
+          data-testid="caption-bar"
+          className="fixed bottom-0 inset-x-0 z-40 bg-black/85 text-white px-4 py-3 text-sm leading-snug shadow-lg max-h-40 overflow-hidden"
+        >
+          <div className="max-w-3xl mx-auto space-y-1">
+            {captionFinals.length === 0 && !captionInterim ? (
+              <p className="text-white/60 italic">Waiting for the host to speak…</p>
+            ) : (
+              <>
+                {captionFinals.map((line) => (
+                  <p key={line.id} className="text-white/90">{line.text}</p>
+                ))}
+                {captionInterim && (
+                  <p data-testid="caption-interim" className="text-white/70 italic">{captionInterim}</p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

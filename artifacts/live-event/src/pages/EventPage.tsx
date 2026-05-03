@@ -9,6 +9,7 @@ import {
 import { useUpload } from "@workspace/object-storage-web";
 import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioBroadcast } from "@/hooks/useAudioBroadcast";
+import { useLiveTranscription } from "@/hooks/useLiveTranscription";
 import { toast } from "sonner";
 import {
   Radio,
@@ -35,6 +36,8 @@ import {
   EyeOff,
   Link2,
   Link2Off,
+  Captions,
+  CaptionsOff,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -387,6 +390,15 @@ export function EventPage({ eventId }: EventPageProps) {
     handlePaSourceIce,
     handlePaSourceDisconnected,
   } = useAudioBroadcast({ send });
+
+  const {
+    enabled: transcriptionEnabled,
+    supported: transcriptionSupported,
+    latestPreview: transcriptionPreview,
+    startError: transcriptionError,
+    enable: enableTranscription,
+    disable: disableTranscription,
+  } = useLiveTranscription({ send, isBroadcasting });
 
   // Keep refs in sync with latest function instances
   isBroadcastingRef.current = isBroadcasting;
@@ -792,6 +804,67 @@ export function EventPage({ eventId }: EventPageProps) {
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />
                   Broadcasting to {liveAttendees.length} device{liveAttendees.length !== 1 ? "s" : ""}
                 </div>
+              )}
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Captions className="w-4 h-4 text-primary" aria-hidden="true" />
+                  <span className="text-sm font-medium">Live Captions</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (transcriptionEnabled ? disableTranscription() : enableTranscription())}
+                  disabled={!isBroadcasting || !transcriptionSupported}
+                  aria-pressed={transcriptionEnabled}
+                  data-testid="host-captions-toggle"
+                  className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    transcriptionEnabled
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+                  }`}
+                >
+                  {transcriptionEnabled ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <CaptionsOff className="w-3.5 h-3.5" aria-hidden="true" /> Stop Captions
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Captions className="w-3.5 h-3.5" aria-hidden="true" /> Start Captions
+                    </span>
+                  )}
+                </button>
+              </div>
+              {!transcriptionSupported ? (
+                <p className="text-xs text-muted-foreground">
+                  Your browser doesn't support live transcription. Use{" "}
+                  <a
+                    href="https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Chrome or Edge
+                  </a>{" "}
+                  to enable captions.
+                </p>
+              ) : !isBroadcasting ? (
+                <p className="text-xs text-muted-foreground">Start the broadcast to enable live captions.</p>
+              ) : transcriptionEnabled ? (
+                <div
+                  data-testid="host-caption-preview"
+                  aria-live="polite"
+                  className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-lg px-3 py-2 min-h-[2rem]"
+                >
+                  {transcriptionPreview || "Listening…"}
+                </div>
+              ) : transcriptionError ? (
+                <p data-testid="host-caption-error" role="alert" className="text-xs text-red-500">
+                  Couldn't start captions: {transcriptionError}. Check microphone permissions and try again.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Send live captions of your audio to all attendees.</p>
               )}
             </div>
           </div>

@@ -506,3 +506,201 @@ describe("WebSocket integration — Q&A lifecycle", { timeout: 15000 }, () => {
     expect(received).toBe(false);
   });
 });
+
+describe("WebSocket integration — Live Transcription", { timeout: 15000 }, () => {
+  it("enable-transcription while broadcasting → attendee receives transcription-enabled", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+
+    const enabled = waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    const msg = await enabled;
+    expect(msg.type).toBe("transcription-enabled");
+  });
+
+  it("enable-transcription without broadcasting → no transcription-enabled broadcast", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    let received = false;
+    const handler = (data: WebSocket.RawData) => {
+      const m = JSON.parse(data.toString());
+      if (m.type === "transcription-enabled") received = true;
+    };
+    attendeeWs.on("message", handler);
+
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await new Promise((r) => setTimeout(r, 400));
+    attendeeWs.off("message", handler);
+    expect(received).toBe(false);
+  });
+
+  it("transcript-chunk relays text + isFinal to attendees with length cap", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+
+    const longText = "a".repeat(900);
+    const chunkP = waitForMessage(attendeeWs, (m) => m.type === "transcript-chunk");
+    hostWs.send(JSON.stringify({ type: "transcript-chunk", text: longText, isFinal: true }));
+    const msg = await chunkP;
+    expect(msg.text.length).toBe(500);
+    expect(msg.isFinal).toBe(true);
+  });
+
+  it("transcript-chunk without enable-transcription is ignored", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+
+    let received = false;
+    const handler = (data: WebSocket.RawData) => {
+      const m = JSON.parse(data.toString());
+      if (m.type === "transcript-chunk") received = true;
+    };
+    attendeeWs.on("message", handler);
+
+    hostWs.send(JSON.stringify({ type: "transcript-chunk", text: "hi", isFinal: true }));
+    await new Promise((r) => setTimeout(r, 400));
+    attendeeWs.off("message", handler);
+    expect(received).toBe(false);
+  });
+
+  it("attendee cannot enable-transcription (host-only)", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    let received = false;
+    const handler = (data: WebSocket.RawData) => {
+      const m = JSON.parse(data.toString());
+      if (m.type === "transcription-enabled") received = true;
+    };
+    attendeeWs.on("message", handler);
+    hostWs.on("message", handler);
+
+    attendeeWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await new Promise((r) => setTimeout(r, 400));
+    attendeeWs.off("message", handler);
+    hostWs.off("message", handler);
+    expect(received).toBe(false);
+  });
+
+  it("stop-broadcast auto-disables transcription and broadcasts transcription-disabled", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+
+    const disabled = waitForMessage(attendeeWs, (m) => m.type === "transcription-disabled");
+    hostWs.send(JSON.stringify({ type: "stop-broadcast" }));
+    const msg = await disabled;
+    expect(msg.type).toBe("transcription-disabled");
+  });
+
+  it("late-joining attendee receives transcription-enabled in initial snapshot", async () => {
+    const hostWs = await joinHost();
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Attach transcription-enabled listener BEFORE the join handshake so we
+    // catch the message the server sends synchronously after qa-state.
+    const attendeeWs = await connectAndWait(wsUrl());
+    const enabledP = waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+    attendeeWs.send(JSON.stringify({
+      type: "join-attendee",
+      eventId: 1,
+      attendeeId: 1,
+      attendeeName: "Alice",
+      attendeeToken: "token-1",
+    }));
+    const snapshot = await enabledP;
+    expect(snapshot.type).toBe("transcription-enabled");
+  });
+
+  it("late-joining attendee receives transcript-snapshot with recent finals + interim", async () => {
+    const hostWs = await joinHost();
+    const earlyAttendee = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(earlyAttendee, (m) => m.type === "stream-available");
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await waitForMessage(earlyAttendee, (m) => m.type === "transcription-enabled");
+
+    // Send 7 finals — server should keep last 5 — then one interim.
+    for (let i = 1; i <= 7; i++) {
+      hostWs.send(JSON.stringify({ type: "transcript-chunk", text: `final ${i}`, isFinal: true }));
+    }
+    hostWs.send(JSON.stringify({ type: "transcript-chunk", text: "interim text", isFinal: false }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    const lateWs = await connectAndWait(wsUrl());
+    const snapshotP = waitForMessage(lateWs, (m) => m.type === "transcript-snapshot");
+    lateWs.send(JSON.stringify({
+      type: "join-attendee",
+      eventId: 1,
+      attendeeId: 1,
+      attendeeName: "Alice",
+      attendeeToken: "token-1",
+    }));
+    const snap = await snapshotP;
+    expect(snap.finals).toEqual(["final 3", "final 4", "final 5", "final 6", "final 7"]);
+    expect(snap.interim).toBe("interim text");
+  });
+
+  it("no transcript-snapshot is sent when there is no buffered text yet", async () => {
+    const hostWs = await joinHost();
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    const lateWs = await connectAndWait(wsUrl());
+    let gotSnapshot = false;
+    lateWs.on("message", (data) => {
+      const m = JSON.parse(data.toString());
+      if (m.type === "transcript-snapshot") gotSnapshot = true;
+    });
+    lateWs.send(JSON.stringify({
+      type: "join-attendee",
+      eventId: 1,
+      attendeeId: 1,
+      attendeeName: "Alice",
+      attendeeToken: "token-1",
+    }));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(gotSnapshot).toBe(false);
+  });
+
+  it("host disconnect auto-disables transcription for remaining attendees", async () => {
+    const hostWs = await joinHost();
+    const attendeeWs = await joinAttendee();
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+    hostWs.send(JSON.stringify({ type: "enable-transcription" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+
+    const disabled = waitForMessage(attendeeWs, (m) => m.type === "transcription-disabled");
+    hostWs.close();
+    const msg = await disabled;
+    expect(msg.type).toBe("transcription-disabled");
+  });
+});
