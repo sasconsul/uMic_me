@@ -4,7 +4,7 @@ import { useWebSocket, type WsMessage } from "@/hooks/useWebSocket";
 import { useAudioReceive } from "@/hooks/useAudioReceive";
 import { useSpeakerUplink } from "@/hooks/useSpeakerUplink";
 import { toast } from "sonner";
-import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink, Captions, CaptionsOff } from "lucide-react";
+import { Hand, Volume2, VolumeX, Radio, CheckCircle, Mic, MicOff, Star, Send, BarChart2, ExternalLink, Captions, CaptionsOff, FileText, X } from "lucide-react";
 
 interface StoredJoinData {
   eventId: number;
@@ -76,6 +76,15 @@ export function AttendeePage() {
   const [captionInterim, setCaptionInterim] = useState("");
   const [captionLang, setCaptionLang] = useState<string | null>(null);
   const captionIdRef = useRef(0);
+
+  // Full event transcript panel
+  interface TranscriptItem { id: number | string; text: string; createdAt?: string; }
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [transcriptItems, setTranscriptItems] = useState<TranscriptItem[]>([]);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
+  const transcriptLocalIdRef = useRef(0);
 
   useEffect(() => {
     const stored =
@@ -256,6 +265,10 @@ export function AttendeePage() {
               const next = [...prev, { id: ++captionIdRef.current, text }];
               return next.slice(-5);
             });
+            setTranscriptItems((prev) => [
+              ...prev,
+              { id: `local-${++transcriptLocalIdRef.current}`, text, createdAt: new Date().toISOString() },
+            ]);
           } else {
             setCaptionInterim(text);
           }
@@ -352,6 +365,36 @@ export function AttendeePage() {
     if (!activePoll?.active || myVote !== null) return;
     send({ type: "cast-vote", optionIndex });
   };
+
+  const loadTranscript = useCallback(async () => {
+    if (!eventId || !sessionToken) return;
+    setTranscriptLoading(true);
+    setTranscriptError(null);
+    try {
+      const res = await fetch(`/api/events/${eventId}/transcript`, {
+        headers: { "x-attendee-token": sessionToken },
+      });
+      if (!res.ok) throw new Error("Failed to load transcript");
+      const data = (await res.json()) as { items: Array<{ id: number; text: string; createdAt: string }> };
+      setTranscriptItems(data.items.map((item) => ({ id: item.id, text: item.text, createdAt: item.createdAt })));
+    } catch {
+      setTranscriptError("Failed to load transcript. Please try again.");
+    } finally {
+      setTranscriptLoading(false);
+    }
+  }, [eventId, sessionToken]);
+
+  const handleOpenTranscript = useCallback(() => {
+    setTranscriptOpen(true);
+    void loadTranscript();
+  }, [loadTranscript]);
+
+  // Auto-scroll the transcript panel to the bottom when items change while open.
+  useEffect(() => {
+    if (!transcriptOpen) return;
+    const el = transcriptScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [transcriptOpen, transcriptItems, transcriptLoading]);
 
   const handleToggleCaptions = () => {
     setCaptionsOn((prev) => {
@@ -822,10 +865,86 @@ export function AttendeePage() {
           </div>
         )}
 
+        <button
+          type="button"
+          onClick={handleOpenTranscript}
+          data-testid="attendee-open-transcript"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-card border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          <FileText className="w-4 h-4" aria-hidden="true" />
+          View Transcript
+        </button>
+
         <p className="text-xs text-muted-foreground" aria-label={`Attendee number ${assignedId ?? attendeeId}`}>
           Attendee #{assignedId ?? attendeeId}
         </p>
       </main>
+
+      {transcriptOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="transcript-title"
+          data-testid="attendee-transcript-panel"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-0 sm:px-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setTranscriptOpen(false); }}
+        >
+          <div className="w-full sm:max-w-lg bg-background border border-border rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h2 id="transcript-title" className="font-semibold text-sm flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" aria-hidden="true" />
+                Event Transcript
+              </h2>
+              <button
+                type="button"
+                onClick={() => setTranscriptOpen(false)}
+                aria-label="Close transcript"
+                className="p-1.5 rounded-lg hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+            <div
+              ref={transcriptScrollRef}
+              data-testid="attendee-transcript-scroll"
+              {...(captionLang ? { lang: captionLang } : {})}
+              className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm leading-relaxed"
+            >
+              {transcriptLoading && transcriptItems.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">Loading transcript…</p>
+              ) : transcriptError ? (
+                <p className="text-destructive text-center py-6">{transcriptError}</p>
+              ) : transcriptItems.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">
+                  No transcript yet. Captions will appear here once the host starts speaking.
+                </p>
+              ) : (
+                transcriptItems.map((item) => (
+                  <p key={item.id} className="text-foreground">
+                    {item.text}
+                  </p>
+                ))
+              )}
+              {transcriptionEnabled && captionInterim && (
+                <p className="text-muted-foreground italic" data-testid="attendee-transcript-interim">
+                  {captionInterim}
+                </p>
+              )}
+            </div>
+            <div className="px-4 py-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <span>{transcriptItems.length} line{transcriptItems.length === 1 ? "" : "s"}</span>
+              <button
+                type="button"
+                onClick={() => void loadTranscript()}
+                disabled={transcriptLoading}
+                className="text-primary hover:underline disabled:opacity-50"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {transcriptionEnabled && captionsOn && (
         <div

@@ -3,7 +3,7 @@ import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
-import { db, eventsTable, attendeesTable, pollResponsesTable } from "@workspace/db";
+import { db, eventsTable, attendeesTable, pollResponsesTable, eventTranscriptsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getSessionUserFromReq, verifyHostToken } from "./wsAuth";
 
@@ -502,6 +502,15 @@ export function setupWebSocketServer(server: Server) {
               currentRoom.transcriptFinals = currentRoom.transcriptFinals.slice(-5);
             }
             currentRoom.transcriptInterim = "";
+            // Persist the final chunk so attendees and the host can review the
+            // full transcript later (live, on reconnect, and after the event ends).
+            const persistEventId = currentRoom.eventId;
+            const persistLang = lang ?? currentRoom.transcriptLang ?? null;
+            db.insert(eventTranscriptsTable)
+              .values({ eventId: persistEventId, text, lang: persistLang })
+              .catch((err) => {
+                logger.error({ err, eventId: persistEventId }, "Failed to persist transcript chunk");
+              });
           } else {
             currentRoom.transcriptInterim = text;
           }

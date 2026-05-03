@@ -42,6 +42,7 @@ vi.mock("@workspace/db", () => ({
   eventsTable: EVENTS_TABLE,
   attendeesTable: ATTENDEES_TABLE,
   pollResponsesTable: POLL_RESPONSES_TABLE,
+  eventTranscriptsTable: { __mock: "event_transcripts" },
 }));
 
 vi.mock("drizzle-orm", () => ({

@@ -40,6 +40,8 @@ import {
   CaptionsOff,
   ChevronDown,
   ChevronUp,
+  FileText,
+  Download,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -392,6 +394,39 @@ export function EventPage({ eventId }: EventPageProps) {
   } = useAudioBroadcast({ send });
 
   const [captionLang, setCaptionLang] = useState("en-US");
+  const [transcriptDownloading, setTranscriptDownloading] = useState(false);
+
+  const handleDownloadTranscript = useCallback(async () => {
+    if (!eventId) return;
+    setTranscriptDownloading(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/transcript`);
+      if (!res.ok) throw new Error("Failed to load transcript");
+      const data = (await res.json()) as { items: Array<{ id: number; text: string; createdAt: string }> };
+      if (data.items.length === 0) {
+        toast.info("No transcript captured yet for this event.");
+        return;
+      }
+      const lines = data.items.map((item) => {
+        const ts = new Date(item.createdAt).toLocaleString();
+        return `[${ts}] ${item.text}`;
+      });
+      const blob = new Blob([lines.join("\n") + "\n"], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `event-${eventId}-transcript.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Failed to download transcript.");
+    } finally {
+      setTranscriptDownloading(false);
+    }
+  }, [eventId]);
+
   const {
     enabled: transcriptionEnabled,
     supported: transcriptionSupported,
@@ -899,6 +934,23 @@ export function EventPage({ eventId }: EventPageProps) {
               ) : (
                 <p className="text-xs text-muted-foreground">Send live captions of your audio to all attendees.</p>
               )}
+              <button
+                type="button"
+                onClick={handleDownloadTranscript}
+                disabled={transcriptDownloading}
+                data-testid="host-download-transcript"
+                className="w-full inline-flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded-lg font-semibold border border-border bg-background hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {transcriptDownloading ? (
+                  <>
+                    <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Preparing transcript…
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" aria-hidden="true" /> Download Full Transcript
+                  </>
+                )}
+              </button>
             </div>
           </div>
 

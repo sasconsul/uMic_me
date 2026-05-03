@@ -7,6 +7,7 @@ import feedbackRouter from "./feedback";
 import pollSetsRouter from "./pollSets";
 import costTrackerRouter from "./costTracker";
 import featureBoardRouter from "./featureBoard";
+import transcriptsRouter from "./transcripts";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(feedbackRouter);
 router.use(pollSetsRouter);
 router.use(costTrackerRouter);
 router.use(featureBoardRouter);
+router.use(transcriptsRouter);
 
 export default router;
