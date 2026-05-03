@@ -689,7 +689,7 @@ export function AttendeePage() {
                     const pct = activePoll.totalVotes > 0 ? Math.round((count / activePoll.totalVotes) * 100) : 0;
                     const voted = myVote === i;
                     const canVote = activePoll.active && myVote === null;
-                    const showBar = !activePoll.active || activePoll.showResults || myVote !== null;
+                    const showBar = !activePoll.active || activePoll.showResults;
                     return (
                       <button
                         key={i}
@@ -722,7 +722,7 @@ export function AttendeePage() {
                     );
                   })}
                 </div>
-                {(activePoll.showResults || !activePoll.active || myVote !== null) && (
+                {(activePoll.showResults || !activePoll.active) && (
                   <p className="text-xs text-muted-foreground">{activePoll.totalVotes} vote{activePoll.totalVotes !== 1 ? "s" : ""}</p>
                 )}
                 {myVote !== null && activePoll.active && !activePoll.showResults && (

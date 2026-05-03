@@ -698,6 +698,106 @@ test.describe("Attendee Page — WebSocket-driven poll & Q&A state transitions",
     await expect(page.locator("text=10 votes")).toHaveCount(0);
   });
 
+  test("percentages and vote count stay hidden after attendee votes when showResults=false", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-voted-hidden",
+        question: "Which cloud provider?",
+        options: ["AWS", "GCP", "Azure"],
+        counts: [0, 0, 0],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Which cloud provider?")).toBeVisible();
+
+    await sendWsMessage(page, { type: "poll-vote-confirmed", optionIndex: 0 });
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-voted-hidden",
+        question: "Which cloud provider?",
+        options: ["AWS", "GCP", "Azure"],
+        counts: [1, 0, 0],
+        totalVotes: 1,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Voted")).toBeVisible();
+    await expect(page.locator("text=Your vote has been recorded")).toBeVisible();
+
+    await expect(page.locator("text=100%")).toHaveCount(0);
+    await expect(page.locator("text=0%")).toHaveCount(0);
+    await expect(page.locator("text=1 vote")).toHaveCount(0);
+  });
+
+  test("percentages become visible after attendee has voted once host reveals results", async ({ page }) => {
+    await page.goto(attendeePath);
+    await page.waitForTimeout(500);
+
+    await sendWsMessage(page, { type: "qa-state", qaOpen: false, attendees: [] });
+    await sendWsMessage(page, {
+      type: "poll-launched",
+      poll: {
+        id: "poll-voted-then-reveal",
+        question: "Tabs or spaces?",
+        options: ["Tabs", "Spaces"],
+        counts: [0, 0],
+        totalVotes: 0,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=Tabs or spaces?")).toBeVisible();
+
+    await sendWsMessage(page, { type: "poll-vote-confirmed", optionIndex: 1 });
+
+    await sendWsMessage(page, {
+      type: "poll-updated",
+      poll: {
+        id: "poll-voted-then-reveal",
+        question: "Tabs or spaces?",
+        options: ["Tabs", "Spaces"],
+        counts: [4, 6],
+        totalVotes: 10,
+        showResults: false,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=40%")).toHaveCount(0);
+    await expect(page.locator("text=60%")).toHaveCount(0);
+    await expect(page.locator("text=10 votes")).toHaveCount(0);
+
+    await sendWsMessage(page, {
+      type: "poll-results-toggled",
+      poll: {
+        id: "poll-voted-then-reveal",
+        question: "Tabs or spaces?",
+        options: ["Tabs", "Spaces"],
+        counts: [4, 6],
+        totalVotes: 10,
+        showResults: true,
+        active: true,
+      },
+    });
+
+    await expect(page.locator("text=40%")).toBeVisible();
+    await expect(page.locator("text=60%")).toBeVisible();
+    await expect(page.locator("text=10 votes")).toBeVisible();
+  });
+
   test("poll-ended for feature-board removes the CTA card and Open Feature Board link from the DOM", async ({ page }) => {
     await page.goto(attendeePath);
     await page.waitForTimeout(500);
