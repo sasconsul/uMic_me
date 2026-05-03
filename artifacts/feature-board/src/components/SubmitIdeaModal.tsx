@@ -72,7 +72,21 @@ export function SubmitIdeaModal() {
             description: "Your feature request has been added to the board.",
           });
         },
-        onError: () => {
+        onError: (err: any) => {
+          const status = err?.status ?? err?.response?.status;
+          const data = err?.data ?? err?.response?.data;
+          if (status === 409) {
+            const msg = data?.error || "A similar idea already exists. Please vote for it instead.";
+            toast({
+              title: "Duplicate idea",
+              description: msg,
+              variant: "destructive",
+            });
+            queryClient.invalidateQueries({ queryKey: getListFeatureRequestsQueryKey() });
+            setOpen(false);
+            form.reset();
+            return;
+          }
           toast({
             title: "Error",
             description: "Failed to submit idea. Please try again.",

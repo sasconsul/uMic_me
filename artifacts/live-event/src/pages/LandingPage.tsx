@@ -36,6 +36,11 @@ export function LandingPage() {
               href="/demos"
               className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
             >Experience uMic.me</Link>
+            <a
+              href="/feature-board/"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded hidden md:inline"
+              data-testid="link-feature-board"
+            >Feature Board</a>
             {isSignedIn ? (
               <Link
                 href="/dashboard"

@@ -60,6 +60,10 @@ router.get("/feature-requests", async (req: Request, res: Response) => {
   res.json({ requests });
 });
 
+function normalizeTitle(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 router.post("/feature-requests", async (req: Request, res: Response) => {
   if (req.body.hp) {
     res.status(429).json({ error: "Rate limited." });
@@ -69,6 +73,23 @@ router.post("/feature-requests", async (req: Request, res: Response) => {
   const parsed = CreateFeatureRequestBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body", details: parsed.error.issues });
+    return;
+  }
+
+  const normalized = normalizeTitle(parsed.data.title);
+  const existing = await db
+    .select()
+    .from(featureRequestsTable)
+    .where(sql`lower(regexp_replace(trim(${featureRequestsTable.title}), '\\s+', ' ', 'g')) = ${normalized}`)
+    .limit(1);
+
+  if (existing.length > 0) {
+    const dup = existing[0];
+    logger.info({ id: dup.id, title: parsed.data.title }, "Duplicate feature request rejected");
+    res.status(409).json({
+      error: "A similar idea already exists. Please vote for it instead.",
+      existingRequest: toFeatureRequestShape(dup, false),
+    });
     return;
   }
 

@@ -16,6 +16,7 @@ import {
   X,
   Copy,
   BarChart2,
+  Lightbulb,
 } from "lucide-react";
 import {
   Dialog,
@@ -192,6 +193,14 @@ export function HostDashboard() {
             <BarChart2 className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">Poll Sets</span>
           </button>
+          <a
+            href="/feature-board/"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+            data-testid="link-feature-board"
+          >
+            <Lightbulb className="w-4 h-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Feature Board</span>
+          </a>
           <button
             onClick={() => signOut()}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
