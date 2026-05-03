@@ -74,6 +74,7 @@ export function AttendeePage() {
   interface CaptionLine { id: number; text: string; }
   const [captionFinals, setCaptionFinals] = useState<CaptionLine[]>([]);
   const [captionInterim, setCaptionInterim] = useState("");
+  const [captionLang, setCaptionLang] = useState<string | null>(null);
   const captionIdRef = useRef(0);
 
   useEffect(() => {
@@ -223,25 +224,31 @@ export function AttendeePage() {
           setCaptionFinals([]);
           setCaptionInterim("");
           break;
-        case "transcription-enabled":
+        case "transcription-enabled": {
+          const { lang } = msg as { lang?: string };
           setTranscriptionEnabled(true);
+          if (typeof lang === "string" && lang) setCaptionLang(lang);
           break;
+        }
         case "transcription-disabled":
           setTranscriptionEnabled(false);
           setCaptionFinals([]);
           setCaptionInterim("");
+          setCaptionLang(null);
           break;
         case "transcript-snapshot": {
-          const { finals, interim } = msg as { finals?: string[]; interim?: string };
+          const { finals, interim, lang } = msg as { finals?: string[]; interim?: string; lang?: string };
           if (Array.isArray(finals)) {
             const seeded = finals.slice(-5).map((text) => ({ id: ++captionIdRef.current, text }));
             setCaptionFinals(seeded);
           }
           setCaptionInterim(typeof interim === "string" ? interim : "");
+          if (typeof lang === "string" && lang) setCaptionLang(lang);
           break;
         }
         case "transcript-chunk": {
-          const { text, isFinal } = msg as { text: string; isFinal: boolean };
+          const { text, isFinal, lang } = msg as { text: string; isFinal: boolean; lang?: string };
+          if (typeof lang === "string" && lang) setCaptionLang(lang);
           if (!text) break;
           if (isFinal) {
             setCaptionInterim("");
@@ -827,6 +834,7 @@ export function AttendeePage() {
           aria-atomic="false"
           aria-label="Live captions"
           data-testid="caption-bar"
+          {...(captionLang ? { lang: captionLang } : {})}
           className="fixed bottom-0 inset-x-0 z-40 bg-black/85 text-white px-4 py-3 text-sm leading-snug shadow-lg max-h-40 overflow-hidden"
         >
           <div className="max-w-3xl mx-auto space-y-1">

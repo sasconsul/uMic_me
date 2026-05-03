@@ -391,6 +391,7 @@ export function EventPage({ eventId }: EventPageProps) {
     handlePaSourceDisconnected,
   } = useAudioBroadcast({ send });
 
+  const [captionLang, setCaptionLang] = useState("en-US");
   const {
     enabled: transcriptionEnabled,
     supported: transcriptionSupported,
@@ -398,7 +399,7 @@ export function EventPage({ eventId }: EventPageProps) {
     startError: transcriptionError,
     enable: enableTranscription,
     disable: disableTranscription,
-  } = useLiveTranscription({ send, isBroadcasting });
+  } = useLiveTranscription({ send, isBroadcasting, lang: captionLang });
 
   // Keep refs in sync with latest function instances
   isBroadcastingRef.current = isBroadcasting;
@@ -808,11 +809,42 @@ export function EventPage({ eventId }: EventPageProps) {
             </div>
 
             <div className="border-t border-border pt-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Captions className="w-4 h-4 text-primary" aria-hidden="true" />
                   <span className="text-sm font-medium">Live Captions</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="caption-lang" className="sr-only">
+                    Spoken language
+                  </label>
+                  <select
+                    id="caption-lang"
+                    data-testid="host-captions-language"
+                    value={captionLang}
+                    onChange={(e) => setCaptionLang(e.target.value)}
+                    disabled={transcriptionEnabled || !transcriptionSupported}
+                    title={transcriptionEnabled ? "Stop captions to change language" : "Spoken language for captions"}
+                    className="text-xs px-2 py-1.5 rounded-lg border border-border bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es-ES">Español (España)</option>
+                    <option value="es-MX">Español (México)</option>
+                    <option value="fr-FR">Français</option>
+                    <option value="de-DE">Deutsch</option>
+                    <option value="it-IT">Italiano</option>
+                    <option value="pt-BR">Português (Brasil)</option>
+                    <option value="pt-PT">Português (Portugal)</option>
+                    <option value="nl-NL">Nederlands</option>
+                    <option value="ja-JP">日本語</option>
+                    <option value="ko-KR">한국어</option>
+                    <option value="zh-CN">中文 (简体)</option>
+                    <option value="zh-TW">中文 (繁體)</option>
+                    <option value="ru-RU">Русский</option>
+                    <option value="ar-SA">العربية</option>
+                    <option value="hi-IN">हिन्दी</option>
+                  </select>
                 <button
                   type="button"
                   onClick={() => (transcriptionEnabled ? disableTranscription() : enableTranscription())}
@@ -835,6 +867,7 @@ export function EventPage({ eventId }: EventPageProps) {
                     </span>
                   )}
                 </button>
+                </div>
               </div>
               {!transcriptionSupported ? (
                 <p className="text-xs text-muted-foreground">

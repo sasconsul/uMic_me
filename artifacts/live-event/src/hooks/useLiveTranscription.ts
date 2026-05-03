@@ -4,6 +4,7 @@ import type { WsMessage } from "./useWebSocket";
 interface UseLiveTranscriptionOptions {
   send: (msg: WsMessage) => void;
   isBroadcasting: boolean;
+  lang?: string;
 }
 
 interface SpeechRecognitionLike {
@@ -31,7 +32,10 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
 
 const THROTTLE_MS = 200;
 
-export function useLiveTranscription({ send, isBroadcasting }: UseLiveTranscriptionOptions) {
+export function useLiveTranscription({ send, isBroadcasting, lang }: UseLiveTranscriptionOptions) {
+  const effectiveLang = lang || "en-US";
+  const langRef = useRef(effectiveLang);
+  langRef.current = effectiveLang;
   const [enabled, setEnabled] = useState(false);
   const [latestPreview, setLatestPreview] = useState("");
   const [startError, setStartError] = useState<string | null>(null);
@@ -52,7 +56,7 @@ export function useLiveTranscription({ send, isBroadcasting }: UseLiveTranscript
     if (!payload) return;
     pendingPayloadRef.current = null;
     lastSendAtRef.current = Date.now();
-    send({ type: "transcript-chunk", text: payload.text, isFinal: payload.isFinal });
+    send({ type: "transcript-chunk", text: payload.text, isFinal: payload.isFinal, lang: langRef.current });
   }, [send]);
 
   const queueSend = useCallback(
@@ -67,7 +71,7 @@ export function useLiveTranscription({ send, isBroadcasting }: UseLiveTranscript
         }
         pendingPayloadRef.current = null;
         lastSendAtRef.current = Date.now();
-        send({ type: "transcript-chunk", text: trimmed, isFinal: true });
+        send({ type: "transcript-chunk", text: trimmed, isFinal: true, lang: langRef.current });
         return;
       }
       pendingPayloadRef.current = { text: trimmed, isFinal: false };
@@ -106,7 +110,7 @@ export function useLiveTranscription({ send, isBroadcasting }: UseLiveTranscript
     const rec = new Ctor();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+    rec.lang = langRef.current || (typeof navigator !== "undefined" && navigator.language) || "en-US";
 
     rec.onresult = (event) => {
       let interim = "";
@@ -159,7 +163,7 @@ export function useLiveTranscription({ send, isBroadcasting }: UseLiveTranscript
     recognizerRef.current = rec;
     setStartError(null);
     setEnabled(true);
-    send({ type: "enable-transcription" });
+    send({ type: "enable-transcription", lang: langRef.current });
     return true;
   }, [isBroadcasting, queueSend, send]);
 

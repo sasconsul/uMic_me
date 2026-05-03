@@ -48,6 +48,7 @@ export interface Room {
   transcriptionEnabled: boolean;
   transcriptFinals: string[];
   transcriptInterim: string;
+  transcriptLang: string | null;
   activePoll?: Poll;
   activeDirectedQuestion?: DirectedQuestion;
 }
@@ -202,6 +203,7 @@ export function setupWebSocketServer(server: Server) {
           currentRoom.transcriptionEnabled = false;
           currentRoom.transcriptFinals = [];
           currentRoom.transcriptInterim = "";
+          currentRoom.transcriptLang = null;
           broadcastToAttendees(currentRoom, { type: "transcription-disabled" });
         }
       } else if (currentRole === "attendee" && currentAttendeeId !== undefined) {
@@ -285,7 +287,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Fresh room
-            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "" };
+            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== resolvedUserId) {
             // Another verified host already owns this room
@@ -353,7 +355,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "" };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           }
 
@@ -377,12 +379,13 @@ export function setupWebSocketServer(server: Server) {
             ws.send(JSON.stringify({ type: "stream-available" }));
           }
           if (currentRoom.transcriptionEnabled) {
-            ws.send(JSON.stringify({ type: "transcription-enabled" }));
+            ws.send(JSON.stringify({ type: "transcription-enabled", lang: currentRoom.transcriptLang ?? undefined }));
             if (currentRoom.transcriptFinals.length > 0 || currentRoom.transcriptInterim) {
               ws.send(JSON.stringify({
                 type: "transcript-snapshot",
                 finals: currentRoom.transcriptFinals,
                 interim: currentRoom.transcriptInterim,
+                lang: currentRoom.transcriptLang ?? undefined,
               }));
             }
           }
@@ -451,6 +454,7 @@ export function setupWebSocketServer(server: Server) {
             currentRoom.transcriptionEnabled = false;
             currentRoom.transcriptFinals = [];
             currentRoom.transcriptInterim = "";
+            currentRoom.transcriptLang = null;
             broadcastToAttendees(currentRoom, { type: "transcription-disabled" });
           }
           break;
@@ -461,7 +465,11 @@ export function setupWebSocketServer(server: Server) {
           if (!currentRoom.isBroadcasting) return;
           if (currentRoom.transcriptionEnabled) break;
           currentRoom.transcriptionEnabled = true;
-          broadcastToAttendees(currentRoom, { type: "transcription-enabled" });
+          const lang = typeof msg.lang === "string"
+            ? msg.lang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || null
+            : null;
+          currentRoom.transcriptLang = lang;
+          broadcastToAttendees(currentRoom, { type: "transcription-enabled", lang: lang ?? undefined });
           break;
         }
 
@@ -471,6 +479,7 @@ export function setupWebSocketServer(server: Server) {
           currentRoom.transcriptionEnabled = false;
           currentRoom.transcriptFinals = [];
           currentRoom.transcriptInterim = "";
+          currentRoom.transcriptLang = null;
           broadcastToAttendees(currentRoom, { type: "transcription-disabled" });
           break;
         }
@@ -483,6 +492,10 @@ export function setupWebSocketServer(server: Server) {
             : "";
           if (!text) return;
           const isFinal = Boolean(msg.isFinal);
+          const lang = typeof msg.lang === "string"
+            ? msg.lang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || null
+            : null;
+          if (lang) currentRoom.transcriptLang = lang;
           if (isFinal) {
             currentRoom.transcriptFinals.push(text);
             if (currentRoom.transcriptFinals.length > 5) {
@@ -492,7 +505,12 @@ export function setupWebSocketServer(server: Server) {
           } else {
             currentRoom.transcriptInterim = text;
           }
-          broadcastToAttendees(currentRoom, { type: "transcript-chunk", text, isFinal });
+          broadcastToAttendees(currentRoom, {
+            type: "transcript-chunk",
+            text,
+            isFinal,
+            lang: lang ?? currentRoom.transcriptLang ?? undefined,
+          });
           break;
         }
 
@@ -728,7 +746,7 @@ export function setupWebSocketServer(server: Server) {
 
           let room = rooms.get(eventId);
           if (!room) {
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "" };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
             rooms.set(eventId, room);
           }
 
