@@ -2,6 +2,7 @@ import { createServer } from "http";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { setupWebSocketServer } from "./lib/websocket";
+import { startTranscriptRetentionJob } from "./lib/transcriptRetention";
 
 const rawPort = process.env["PORT"];
 
@@ -17,6 +18,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const server = createServer(app);
 setupWebSocketServer(server);
+startTranscriptRetentionJob();
 
 server.listen(port, () => {
   logger.info({ port }, "Server listening");
