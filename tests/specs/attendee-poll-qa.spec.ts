@@ -1068,6 +1068,7 @@ test.describe("Attendee Page — Q&A question submission", () => {
     expect(loweredMsg.questionText).toBeUndefined();
 
     await expect(page.locator("button", { has: page.locator("text=Raise Hand") })).toBeVisible();
+    await expect(textarea).not.toBeDisabled();
   });
 });
 
