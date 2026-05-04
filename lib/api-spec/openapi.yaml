@@ -1562,6 +1562,8 @@ components:
           type: [string, 'null']
         hp:
           type: [string, 'null']
+        voterFingerprint:
+          type: [string, 'null']
 
     VoteFeatureRequestBody:
       type: object

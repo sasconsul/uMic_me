@@ -357,6 +357,7 @@ export const CreateFeatureRequestBody = zod.object({
     .max(createFeatureRequestBodyDescriptionMax),
   submittedBy: zod.string().nullish(),
   hp: zod.string().nullish(),
+  voterFingerprint: zod.string().nullish(),
 });
 
 /**

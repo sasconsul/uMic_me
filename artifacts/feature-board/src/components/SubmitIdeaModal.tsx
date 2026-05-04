@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 import { getListFeatureRequestsQueryKey, getGetFeatureBoardStatsQueryKey } from "@workspace/api-client-react";
+import { getVoterFingerprint } from "@/lib/voter-fp";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(120, "Title must be less than 120 characters"),
@@ -52,6 +53,7 @@ export function SubmitIdeaModal() {
   const createRequest = useCreateFeatureRequest();
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    const voterFingerprint = getVoterFingerprint();
     createRequest.mutate(
       {
         data: {
@@ -59,6 +61,7 @@ export function SubmitIdeaModal() {
           description: values.description,
           submittedBy: values.submittedBy || undefined,
           hp: values.hp || undefined,
+          voterFingerprint,
         },
       },
       {
@@ -83,6 +86,17 @@ export function SubmitIdeaModal() {
               variant: "destructive",
             });
             queryClient.invalidateQueries({ queryKey: getListFeatureRequestsQueryKey() });
+            setOpen(false);
+            form.reset();
+            return;
+          }
+          if (status === 429) {
+            const msg = data?.error || "You've submitted too many ideas recently. Please try again later.";
+            toast({
+              title: "Too many submissions",
+              description: msg,
+              variant: "destructive",
+            });
             setOpen(false);
             form.reset();
             return;

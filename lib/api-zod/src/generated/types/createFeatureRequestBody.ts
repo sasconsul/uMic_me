@@ -21,4 +21,6 @@ export interface CreateFeatureRequestBody {
   submittedBy?: string | null;
   /** @nullable */
   hp?: string | null;
+  /** @nullable */
+  voterFingerprint?: string | null;
 }

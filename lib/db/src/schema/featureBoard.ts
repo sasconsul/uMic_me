@@ -9,6 +9,7 @@ export const featureRequestsTable = pgTable("feature_requests", {
   status: text("status").notNull().default("open"),
   voteCount: integer("vote_count").notNull().default(0),
   submittedBy: text("submitted_by"),
+  submittedByFingerprint: text("submitted_by_fingerprint"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, featureRequestsTable, featureVotesTable } from "@workspace/db";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { eq, sql, desc, and, gte, count } from "drizzle-orm";
 import {
   CreateFeatureRequestBody,
   ListFeatureRequestsQueryParams,
@@ -64,6 +64,9 @@ function normalizeTitle(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+const SUBMISSION_LIMIT = 3;
+const SUBMISSION_WINDOW_HOURS = 24;
+
 router.post("/feature-requests", async (req: Request, res: Response) => {
   if (req.body.hp) {
     res.status(429).json({ error: "Rate limited." });
@@ -74,6 +77,27 @@ router.post("/feature-requests", async (req: Request, res: Response) => {
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body", details: parsed.error.issues });
     return;
+  }
+
+  const voterFp = parsed.data.voterFingerprint ?? null;
+  if (voterFp) {
+    const windowStart = new Date(Date.now() - SUBMISSION_WINDOW_HOURS * 60 * 60 * 1000);
+    const [{ submissionCount }] = await db
+      .select({ submissionCount: count() })
+      .from(featureRequestsTable)
+      .where(
+        and(
+          eq(featureRequestsTable.submittedByFingerprint, voterFp),
+          gte(featureRequestsTable.createdAt, windowStart),
+        ),
+      );
+    if (submissionCount >= SUBMISSION_LIMIT) {
+      logger.info({ voterFp, submissionCount }, "Rate limit exceeded for feature request submission");
+      res.status(429).json({
+        error: `You've reached the limit of ${SUBMISSION_LIMIT} submissions per ${SUBMISSION_WINDOW_HOURS} hours. Please try again later.`,
+      });
+      return;
+    }
   }
 
   const normalized = normalizeTitle(parsed.data.title);
@@ -99,6 +123,7 @@ router.post("/feature-requests", async (req: Request, res: Response) => {
       title: parsed.data.title,
       description: parsed.data.description,
       submittedBy: parsed.data.submittedBy ?? null,
+      submittedByFingerprint: voterFp,
     })
     .returning();
 
