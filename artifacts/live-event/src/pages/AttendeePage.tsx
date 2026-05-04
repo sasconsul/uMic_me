@@ -567,7 +567,8 @@ export function AttendeePage() {
           aria-live="assertive"
           aria-atomic="true"
           data-testid="reconnect-banner"
-          className="fixed top-0 inset-x-0 z-50 flex items-center justify-between gap-3 bg-yellow-500 text-yellow-950 px-4 py-3 text-sm font-medium shadow-md"
+          className="fixed top-0 inset-x-0 z-50 flex items-center justify-between gap-3 bg-yellow-500 text-yellow-950 px-4 pb-3 text-sm font-medium shadow-md"
+          style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}
         >
           <span>Connection lost — trying to reconnect…</span>
           <button
@@ -991,7 +992,8 @@ export function AttendeePage() {
           aria-label="Live captions"
           data-testid="caption-bar"
           {...(captionLang ? { lang: captionLang } : {})}
-          className="fixed bottom-0 inset-x-0 z-40 bg-black/85 text-white px-4 py-3 text-sm leading-snug shadow-lg max-h-40 overflow-hidden"
+          className="fixed bottom-0 inset-x-0 z-40 bg-black/85 text-white px-4 pt-3 text-sm leading-snug shadow-lg max-h-40 overflow-hidden"
+          style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
         >
           <div className="max-w-3xl mx-auto space-y-1">
             {captionFinals.length === 0 && !captionInterim ? (

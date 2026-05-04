@@ -60,7 +60,7 @@ vi.mock("../../artifacts/api-server/src/lib/wsAuth", () => ({
 }));
 
 import WebSocket from "ws";
-import { setupWebSocketServer } from "../../artifacts/api-server/src/lib/websocket";
+import { setupWebSocketServer, getRoom, injectTranscript } from "../../artifacts/api-server/src/lib/websocket";
 
 let server: http.Server;
 let wss: import("ws").WebSocketServer;
@@ -703,5 +703,48 @@ describe("WebSocket integration — Live Transcription", { timeout: 15000 }, () 
     hostWs.close();
     const msg = await disabled;
     expect(msg.type).toBe("transcription-disabled");
+  });
+
+  it("injectTranscript (server-side STT path) broadcasts transcript-chunk to attendees with correct lang", async () => {
+    // This mirrors exactly what the POST /api/events/:id/transcribe REST endpoint
+    // does on mobile hosts using server-side fallback (Safari iOS / Firefox Android).
+    const hostWs = await joinHost(1);
+    const attendeeWs = await joinAttendee(1);
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+
+    // Enable server-mode transcription (mode sent by useServerTranscription hook)
+    hostWs.send(JSON.stringify({ type: "enable-transcription", lang: "en-US", mode: "server" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+
+    // Directly call injectTranscript — same as POST /api/events/:id/transcribe
+    const room = getRoom(1);
+    expect(room).not.toBeNull();
+
+    const chunkP = waitForMessage(attendeeWs, (m) => m.type === "transcript-chunk");
+    injectTranscript(room!, "Hello from server STT", true, "en-US");
+    const msg = await chunkP;
+
+    expect(msg.text).toBe("Hello from server STT");
+    expect(msg.isFinal).toBe(true);
+    expect(msg.lang).toBe("en-US");
+  });
+
+  it("injectTranscript sanitizes and truncates overlong server STT text", async () => {
+    const hostWs = await joinHost(1);
+    const attendeeWs = await joinAttendee(1);
+    await waitForMessage(hostWs, (m) => m.type === "attendee-joined");
+    hostWs.send(JSON.stringify({ type: "start-broadcast" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "stream-available");
+    hostWs.send(JSON.stringify({ type: "enable-transcription", mode: "server" }));
+    await waitForMessage(attendeeWs, (m) => m.type === "transcription-enabled");
+
+    const room = getRoom(1);
+    const chunkP = waitForMessage(attendeeWs, (m) => m.type === "transcript-chunk");
+    injectTranscript(room!, "x".repeat(800), true, null);
+    const msg = await chunkP;
+    expect(msg.text.length).toBe(500);
   });
 });

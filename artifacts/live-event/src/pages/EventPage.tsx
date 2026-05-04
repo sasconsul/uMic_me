@@ -954,16 +954,7 @@ export function EventPage({ eventId }: EventPageProps) {
               </div>
               {!transcriptionSupported ? (
                 <p className="text-xs text-muted-foreground">
-                  Your browser doesn't support live transcription. Use{" "}
-                  <a
-                    href="https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition#browser_compatibility"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    Chrome or Edge
-                  </a>{" "}
-                  to enable captions.
+                  Live captions require microphone recording support. Try updating your browser or use Chrome on Android / Safari on iOS 14.3+.
                 </p>
               ) : useServerFallback && !transcriptionEnabled ? (
                 <p data-testid="host-captions-server-hint" className="text-xs text-muted-foreground">
