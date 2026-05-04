@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
-import { useListEvents, useCreateEvent, useDeleteEvent, useDuplicateEvent } from "@workspace/api-client-react";
+import { useListEvents, useCreateEvent, useDeleteEvent, useDuplicateEvent, useGetFeatureBoardStats, getGetFeatureBoardStatsQueryKey } from "@workspace/api-client-react";
 import { useUpload } from "@workspace/object-storage-web";
 import { toast } from "sonner";
 import {
@@ -77,6 +77,9 @@ export function HostDashboard() {
     },
     onError: () => toast.error("Logo upload failed"),
   });
+
+  const { data: statsData } = useGetFeatureBoardStats({ query: { queryKey: getGetFeatureBoardStatsQueryKey(), staleTime: 60_000 } });
+  const openCount = statsData?.openCount ?? 0;
 
   const { data, refetch, isLoading } = useListEvents();
   const createEvent = useCreateEvent({
@@ -197,9 +200,18 @@ export function HostDashboard() {
             href="/feature-board/"
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
             data-testid="link-feature-board"
+            aria-label={openCount > 0 ? `Feature Board — ${openCount} open idea${openCount === 1 ? "" : "s"}` : "Feature Board"}
           >
             <Lightbulb className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">Feature Board</span>
+            {openCount > 0 && (
+              <span
+                className="hidden sm:inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-primary/15 text-primary text-xs font-semibold leading-none"
+                aria-hidden="true"
+              >
+                {openCount}
+              </span>
+            )}
           </a>
           <button
             onClick={() => signOut()}
