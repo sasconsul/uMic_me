@@ -3,8 +3,8 @@ import type { IncomingMessage } from "http";
 import type { Server } from "http";
 import { randomUUID } from "crypto";
 import { logger } from "./logger";
-import { db, eventsTable, attendeesTable, pollResponsesTable, eventTranscriptsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, eventsTable, attendeesTable, pollResponsesTable, eventTranscriptsTable, transcriptionUsageTable } from "@workspace/db";
+import { eq, and, sql } from "drizzle-orm";
 import { getSessionUserFromReq, verifyHostToken } from "./wsAuth";
 
 export interface RoomClient {
@@ -50,8 +50,19 @@ export interface Room {
   transcriptFinals: string[];
   transcriptInterim: string;
   transcriptLang: string | null;
+  transcriptionUsedSeconds: number;
+  transcriptionCapReached: boolean;
   activePoll?: Poll;
   activeDirectedQuestion?: DirectedQuestion;
+}
+
+/**
+ * Returns the per-event transcription cap in seconds.
+ * Configurable via TRANSCRIPTION_CAP_SECONDS_PER_EVENT env var (default: 3600 = 1 hour).
+ */
+export function getTranscriptionCapSeconds(): number {
+  const val = Number(process.env["TRANSCRIPTION_CAP_SECONDS_PER_EVENT"]);
+  return val > 0 ? val : 3600;
 }
 
 /** In-memory store for ephemeral PA source tokens: eventId → token */
@@ -327,8 +338,14 @@ export function setupWebSocketServer(server: Server) {
 
           let room = rooms.get(eventId);
           if (!room) {
-            // Fresh room
-            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            // Fresh room — load any existing usage from DB for this event
+            const usageResult = await db
+              .select({ total: sql<number>`coalesce(sum(${transcriptionUsageTable.estimatedSeconds}), 0)` })
+              .from(transcriptionUsageTable)
+              .where(eq(transcriptionUsageTable.eventId, eventId));
+            const usedSeconds = Number(usageResult[0]?.total ?? 0);
+            const capReached = usedSeconds >= getTranscriptionCapSeconds();
+            room = { eventId, hostUserId: resolvedUserId, clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null, transcriptionUsedSeconds: usedSeconds, transcriptionCapReached: capReached };
             rooms.set(eventId, room);
           } else if (room.hostUserId !== "" && room.hostUserId !== resolvedUserId) {
             // Another verified host already owns this room
@@ -336,7 +353,15 @@ export function setupWebSocketServer(server: Server) {
             return;
           } else {
             // Attendees may have created the room before host arrived (hostUserId: "")
-            // or this is the same host reconnecting
+            // or this is the same host reconnecting.
+            // Always re-hydrate usage from DB when host joins so in-memory state
+            // reflects prior spend (incl. when room was pre-created by attendees).
+            const usageResult = await db
+              .select({ total: sql<number>`coalesce(sum(${transcriptionUsageTable.estimatedSeconds}), 0)` })
+              .from(transcriptionUsageTable)
+              .where(eq(transcriptionUsageTable.eventId, eventId));
+            room.transcriptionUsedSeconds = Number(usageResult[0]?.total ?? 0);
+            room.transcriptionCapReached = room.transcriptionUsedSeconds >= getTranscriptionCapSeconds();
             room.hostUserId = resolvedUserId;
           }
 
@@ -354,6 +379,9 @@ export function setupWebSocketServer(server: Server) {
               ? { text: currentRoom.activeDirectedQuestion.text, responses: currentRoom.activeDirectedQuestion.responses }
               : null,
             transcriptionEnabled: currentRoom.transcriptionEnabled,
+            transcriptionUsedSeconds: currentRoom.transcriptionUsedSeconds,
+            transcriptionCapReached: currentRoom.transcriptionCapReached,
+            transcriptionCapSeconds: getTranscriptionCapSeconds(),
           }));
           break;
         }
@@ -396,7 +424,7 @@ export function setupWebSocketServer(server: Server) {
           let room = rooms.get(eventId);
           if (!room) {
             // Host hasn't joined yet — create the room with empty hostUserId
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null, transcriptionUsedSeconds: 0, transcriptionCapReached: false };
             rooms.set(eventId, room);
           }
 
@@ -771,7 +799,7 @@ export function setupWebSocketServer(server: Server) {
 
           let room = rooms.get(eventId);
           if (!room) {
-            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null };
+            room = { eventId, hostUserId: "", clients: new Map(), qaOpen: false, muteUntilCalled: false, isBroadcasting: false, transcriptionEnabled: false, transcriptionMode: "browser", transcriptFinals: [], transcriptInterim: "", transcriptLang: null, transcriptionUsedSeconds: 0, transcriptionCapReached: false };
             rooms.set(eventId, room);
           }
 

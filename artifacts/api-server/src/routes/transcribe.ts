@@ -1,14 +1,50 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import express from "express";
 import { getAuth } from "@clerk/express";
-import { db, eventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { getRoom, injectTranscript } from "../lib/websocket";
+import { db, eventsTable, transcriptionUsageTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { getRoom, injectTranscript, sendToHost, getTranscriptionCapSeconds } from "../lib/websocket";
 import { logger } from "../lib/logger";
+
+/**
+ * Returns the per-host monthly transcription cap in seconds.
+ * Configurable via TRANSCRIPTION_CAP_SECONDS_PER_HOST_MONTHLY env var.
+ * Defaults to 0 (disabled — no per-host cap) when not set.
+ */
+function getHostMonthlyCapSeconds(): number {
+  const val = Number(process.env["TRANSCRIPTION_CAP_SECONDS_PER_HOST_MONTHLY"]);
+  return val > 0 ? val : 0;
+}
+
+/**
+ * Queries total transcription seconds used by a host across all their events
+ * in the current calendar month.
+ */
+async function getHostMonthlyUsedSeconds(hostUserId: string): Promise<number> {
+  const result = await db
+    .select({ total: sql<number>`coalesce(sum(${transcriptionUsageTable.estimatedSeconds}), 0)` })
+    .from(transcriptionUsageTable)
+    .innerJoin(eventsTable, eq(transcriptionUsageTable.eventId, eventsTable.id))
+    .where(
+      sql`${eventsTable.hostUserId} = ${hostUserId}
+        AND date_trunc('month', ${transcriptionUsageTable.createdAt}) = date_trunc('month', now())`,
+    );
+  return Number(result[0]?.total ?? 0);
+}
 
 const router: IRouter = Router();
 
 const MAX_CHUNK_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Estimate audio duration in seconds from raw bytes.
+ * Assumes WebM/Opus at ~128 kbps (16 KB/s). Each chunk is typically ~4 s
+ * but we derive from byte size so partial chunks are counted accurately.
+ */
+function estimateAudioSeconds(bytes: number): number {
+  const BYTES_PER_SECOND = 16_000;
+  return Math.max(bytes / BYTES_PER_SECOND, 0.1);
+}
 
 /**
  * POST /api/events/:eventId/transcribe
@@ -71,6 +107,49 @@ router.post(
       return;
     }
 
+    // ── Per-event cap enforcement ─────────────────────────────────────────────
+    const capSeconds = getTranscriptionCapSeconds();
+    if (room.transcriptionUsedSeconds >= capSeconds) {
+      if (!room.transcriptionCapReached) {
+        room.transcriptionCapReached = true;
+        sendToHost(room, {
+          type: "transcription-cap-reached",
+          usedSeconds: Math.round(room.transcriptionUsedSeconds),
+          capSeconds,
+          message: `Caption time limit reached (${Math.floor(capSeconds / 60)} min). Server-side transcription has been paused.`,
+        });
+      }
+      res.status(429).json({
+        error: "Transcription cap reached",
+        usedSeconds: Math.round(room.transcriptionUsedSeconds),
+        capSeconds,
+      });
+      return;
+    }
+
+    // ── Per-host monthly cap enforcement ─────────────────────────────────────
+    const hostMonthlyCap = getHostMonthlyCapSeconds();
+    if (hostMonthlyCap > 0) {
+      const hostUsedSeconds = await getHostMonthlyUsedSeconds(userId);
+      if (hostUsedSeconds >= hostMonthlyCap) {
+        logger.warn({ eventId, userId, hostUsedSeconds, hostMonthlyCap }, "Host monthly transcription cap reached");
+        sendToHost(room, {
+          type: "transcription-cap-reached",
+          usedSeconds: Math.round(hostUsedSeconds),
+          capSeconds: hostMonthlyCap,
+          scope: "host-monthly",
+          message: `Monthly caption time limit reached (${Math.floor(hostMonthlyCap / 60)} min). Server-side transcription has been paused until next month.`,
+        });
+        res.status(429).json({
+          error: "Host monthly transcription cap reached",
+          usedSeconds: Math.round(hostUsedSeconds),
+          capSeconds: hostMonthlyCap,
+          scope: "host-monthly",
+        });
+        return;
+      }
+    }
+
     const rawLang = typeof req.query.lang === "string" ? req.query.lang : "";
     const lang = rawLang.replace(/[^A-Za-z0-9-]/g, "").slice(0, 35) || room.transcriptLang || "en-US";
 
@@ -120,7 +199,43 @@ router.post(
       if (text) {
         injectTranscript(room, text, true, lang);
       }
-      res.json({ text });
+
+      // ── Record usage ─────────────────────────────────────────────────────────
+      const estimatedSeconds = estimateAudioSeconds(audioBuffer.length);
+      room.transcriptionUsedSeconds += estimatedSeconds;
+
+      const nowCapReached = room.transcriptionUsedSeconds >= capSeconds;
+      if (nowCapReached && !room.transcriptionCapReached) {
+        room.transcriptionCapReached = true;
+        sendToHost(room, {
+          type: "transcription-cap-reached",
+          usedSeconds: Math.round(room.transcriptionUsedSeconds),
+          capSeconds,
+          message: `Caption time limit reached (${Math.floor(capSeconds / 60)} min). Server-side transcription has been paused.`,
+        });
+      }
+
+      // Notify host of current usage after every chunk
+      sendToHost(room, {
+        type: "transcription-usage",
+        usedSeconds: Math.round(room.transcriptionUsedSeconds),
+        capSeconds,
+        capReached: room.transcriptionCapReached,
+      });
+
+      // Persist usage record asynchronously (do not block response)
+      db.insert(transcriptionUsageTable)
+        .values({ eventId, audioBytes: audioBuffer.length, estimatedSeconds })
+        .catch((err) => {
+          logger.error({ err, eventId }, "Failed to persist transcription usage");
+        });
+
+      res.json({
+        text,
+        usedSeconds: Math.round(room.transcriptionUsedSeconds),
+        capSeconds,
+        capReached: room.transcriptionCapReached,
+      });
     } catch (err) {
       logger.error({ err, eventId }, "Server-side transcription failed");
       res.status(500).json({ error: "Internal error" });

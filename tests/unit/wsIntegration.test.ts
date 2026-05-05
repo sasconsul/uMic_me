@@ -43,11 +43,13 @@ vi.mock("@workspace/db", () => ({
   attendeesTable: ATTENDEES_TABLE,
   pollResponsesTable: POLL_RESPONSES_TABLE,
   eventTranscriptsTable: { __mock: "event_transcripts" },
+  transcriptionUsageTable: { _t: "transcription_usage", eventId: "tu.eid" },
 }));
 
 vi.mock("drizzle-orm", () => ({
   eq: vi.fn(),
   and: vi.fn(),
+  sql: vi.fn((strings: TemplateStringsArray) => ({ __sql: strings.join("") })),
 }));
 
 vi.mock("../../artifacts/api-server/src/lib/logger", () => ({

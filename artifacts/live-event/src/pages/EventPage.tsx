@@ -266,6 +266,26 @@ export function EventPage({ eventId }: EventPageProps) {
               ? (msg.activeDirectedQuestion as { text: string; responses: DirectedResponse[] })
               : null
           );
+          if (typeof msg.transcriptionUsedSeconds === "number") setTranscriptionUsedSeconds(msg.transcriptionUsedSeconds as number);
+          if (typeof msg.transcriptionCapSeconds === "number") setTranscriptionCapSeconds(msg.transcriptionCapSeconds as number);
+          if (typeof msg.transcriptionCapReached === "boolean") setTranscriptionCapReached(msg.transcriptionCapReached as boolean);
+          break;
+        }
+
+        case "transcription-usage": {
+          const { usedSeconds, capSeconds, capReached } = msg as { usedSeconds: number; capSeconds: number; capReached: boolean };
+          setTranscriptionUsedSeconds(usedSeconds);
+          setTranscriptionCapSeconds(capSeconds);
+          setTranscriptionCapReached(capReached);
+          break;
+        }
+
+        case "transcription-cap-reached": {
+          const { usedSeconds, capSeconds, message: capMsg } = msg as { usedSeconds: number; capSeconds: number; message: string };
+          setTranscriptionUsedSeconds(usedSeconds);
+          setTranscriptionCapSeconds(capSeconds);
+          setTranscriptionCapReached(true);
+          toast.warning(capMsg || "Caption time limit reached. Server-side transcription has been paused.");
           break;
         }
 
@@ -399,6 +419,11 @@ export function EventPage({ eventId }: EventPageProps) {
 
   const [captionLang, setCaptionLang] = useState("en-US");
   const [transcriptDownloading, setTranscriptDownloading] = useState(false);
+
+  // Server-side transcription usage tracking
+  const [transcriptionUsedSeconds, setTranscriptionUsedSeconds] = useState(0);
+  const [transcriptionCapSeconds, setTranscriptionCapSeconds] = useState(3600);
+  const [transcriptionCapReached, setTranscriptionCapReached] = useState(false);
 
   // Host transcript view modal
   interface HostTranscriptItem { id: number; text: string; createdAt: string; }
@@ -972,13 +997,22 @@ export function EventPage({ eventId }: EventPageProps) {
                     {transcriptionPreview || "Listening…"}
                   </div>
                   {transcriptionMode === "server" && (
-                    <p
-                      data-testid="host-captions-server-badge"
-                      className="text-[11px] text-muted-foreground inline-flex items-center gap-1"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
-                      Captioned by server
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p
+                        data-testid="host-captions-server-badge"
+                        className="text-[11px] text-muted-foreground inline-flex items-center gap-1"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
+                        Captioned by server
+                      </p>
+                      <p
+                        data-testid="host-captions-usage"
+                        className={`text-[11px] tabular-nums ${transcriptionCapReached ? "text-red-500 font-semibold" : "text-muted-foreground"}`}
+                      >
+                        {Math.floor(transcriptionUsedSeconds / 60)}m {transcriptionUsedSeconds % 60}s / {Math.floor(transcriptionCapSeconds / 60)}m
+                        {transcriptionCapReached && " — limit reached"}
+                      </p>
+                    </div>
                   )}
                 </div>
               ) : transcriptionError ? (
